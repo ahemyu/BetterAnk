@@ -1,0 +1,7 @@
+# backend 
+backend/venv
+backend/.env
+backend/app/__pycache__
+
+# random internal stuff
+Overview.txt

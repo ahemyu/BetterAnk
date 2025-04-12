@@ -1,0 +1,8 @@
+fastapi>=0.104.0 #0.115.12
+uvicorn>=0.23.2 # 0.34.0
+sqlalchemy>=2.0.22 #2.0.40
+pydantic>=2.4.2 # 2.11.3
+psycopg2-binary>=2.9.9  # For PostgreSQL connection
+python-jose>=3.3.0      # For JWT token handling
+passlib>=1.7.4          # For password hashing
+python-dotenv>=1.0.0    # For environment variables
