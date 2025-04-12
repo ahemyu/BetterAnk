@@ -19,4 +19,4 @@ then start the FastAPI backend with python main.py
 Then you can create and get flashcards via the api    
 
 #### See you Space Cowboy ...
-!(/spiku.jpg)
+![spiku](https://github.com/user-attachments/assets/9089303e-fff8-43d7-ad22-2b01a56509a0)
