@@ -5,3 +5,7 @@ backend/app/__pycache__
 
 # random internal stuff
 Overview.txt
+.curl.txt
+
+# overall project 
+.env 
