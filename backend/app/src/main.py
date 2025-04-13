@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import Body, FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from models import DBDeck, Deck, Flashcard, DBFlashcard, Review, DBReview, ReviewFeedback, UpdateDeck
+from models import DBDeck, Deck, Flashcard, DBFlashcard, Message, Review, DBReview, ReviewFeedback, UpdateDeck
 from database import engine, get_db, Base
 from datetime import datetime, timedelta
 
@@ -10,7 +10,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="BetterAnk API")
 
-@app.get("/")
+@app.get("/", response_model=Message)
 async def root():
     """Root endpoint that returns a welcome message."""
     return {"message": "Hello from BetterAnk API"}
@@ -36,7 +36,7 @@ def create_flashcard(flashcard: Flashcard, db: Session = Depends(get_db)):
         created_at=datetime.now(),
         next_review_at=datetime.now(),
         deck_id=flashcard.deck_id,  # This assigns the flashcard to the deck if deck_id is provided
-        # difficulty_factor=flashcard.difficulty_factor
+        # difficulty_factor=flashcard.difficulty_factor 
     )
     
     # Add to the database session and commit
@@ -46,29 +46,21 @@ def create_flashcard(flashcard: Flashcard, db: Session = Depends(get_db)):
     
     return db_flashcard
 
-# this needs to be above get /flashcards/{flashcard_id} bc otherwise FastAPI tries to convert 'due' to an int 
-@app.get("/flashcards/due", response_model=List[Flashcard])
-def get_due_flashcards(db: Session = Depends(get_db)):
-    """
-    Get all flashcards that are due for review.
-    
-    This endpoint returns flashcards where the next_review_at date
-    is in the past, meaning they are ready to be reviewed.
-    """
-    now = datetime.now()
-    due_cards = db.query(DBFlashcard).filter(DBFlashcard.next_review_at <= now).all()
-    return due_cards
-
-
 @app.get("/flashcards", response_model=List[Flashcard])
-def get_flashcards(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_flashcards(due: bool = False, limit: int = 100, db: Session = Depends(get_db)):
     """
     Get all flashcards with pagination.
     
     This endpoint returns all flashcards from the database with optional pagination.
     """
-    return db.query(DBFlashcard).offset(skip).limit(limit).all()
+    query = db.query(DBFlashcard)
 
+    if due:
+        now = datetime.now()
+        # Filter flashcards that are due for review
+        query = query.filter(DBFlashcard.next_review_at <= now)
+
+    return query.limit(limit).all()
 
 @app.get("/flashcards/{flashcard_id}", response_model=Flashcard)
 def get_flashcard(flashcard_id: int, db: Session = Depends(get_db)):
@@ -83,8 +75,8 @@ def get_flashcard(flashcard_id: int, db: Session = Depends(get_db)):
     return db_flashcard
 
 
-@app.post("/reviews", response_model=Review)#TODO:  this endpoint name is not nice
-def create_review(review: Review, db: Session = Depends(get_db)):
+@app.post("/flashcards/{flashcard_id}/review", response_model=Review)
+def create_review(flashcard_id: int, feedback: str = Body(...), db: Session = Depends(get_db)):
     """
     Create a new review for a flashcard.
     
@@ -92,26 +84,26 @@ def create_review(review: Review, db: Session = Depends(get_db)):
     with feedback that can be 'good', 'mid', or 'bad'.
     """
     # Check if the flashcard exists
-    flashcard = db.query(DBFlashcard).filter(DBFlashcard.id == review.flashcard_id).first()
+    flashcard = db.query(DBFlashcard).filter(DBFlashcard.id == flashcard_id).first()
     if flashcard is None:
         raise HTTPException(status_code=404, detail="Flashcard not found")
     
     # Create a new review instance
     now = datetime.now()
     db_review = DBReview(
-        flashcard_id=review.flashcard_id,
+        flashcard_id=flashcard_id,
         review_at=now,
-        feedback=review.feedback
+        feedback=feedback
     )
     
     # Update the flashcard's review information
     flashcard.last_reviewed_at = now
     flashcard.review_count += 1
 
-    # Simple scheduling logic based on feedback
-    if review.feedback == ReviewFeedback.GOOD:
+    # placeholder for review logic
+    if feedback == ReviewFeedback.GOOD:
         flashcard.next_review_at = now + timedelta(days=3)
-    elif review.feedback == ReviewFeedback.MID:
+    elif feedback == ReviewFeedback.MID:
         flashcard.next_review_at = now + timedelta(days=1)
     else:  # BAD
         flashcard.next_review_at = now + timedelta(minutes=2)
@@ -146,32 +138,32 @@ def create_deck(deck: Deck, db: Session = Depends(get_db)):
 
 
 @app.get("/decks", response_model=List[Deck])
-def get_decks(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_decks(limit: int = 100, db: Session = Depends(get_db)):
     """
     Get all decks with pagination.
     
     This endpoint returns all decks from the database with optional pagination.
     """
-    decks = db.query(DBDeck).offset(skip).limit(limit).all()
-    
-    # Optional: You can add the flashcard count for each deck
-    for deck in decks:
-        deck.flashcard_count = len(deck.flashcards)
-    
+    decks = db.query(DBDeck).limit(limit).all()
+
     return decks
 
 
 @app.get("/decks/{deck_id}/flashcards", response_model=List[Flashcard])
-def get_deck_flashcards(deck_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Get all flashcards in a specific deck."""
+def get_deck_flashcards(deck_id: int, due: bool = False, limit: int = 100, db: Session = Depends(get_db)):
+    """Either get all flashcards in a deck or only the due ones."""
     # Check if the deck exists
     db_deck = db.query(DBDeck).filter(DBDeck.id == deck_id).first()
     if db_deck is None:
         raise HTTPException(status_code=404, detail="Deck not found")
     
     # Query flashcards that belong to this deck
-    flashcards = db.query(DBFlashcard).filter(DBFlashcard.deck_id == deck_id).offset(skip).limit(limit).all()
+    flashcards = db.query(DBFlashcard).filter(DBFlashcard.deck_id == deck_id).limit(limit).all()
     
+    if due:
+        now = datetime.now()
+        # Filter flashcards that are due for review
+        flashcards = [card for card in flashcards if card.next_review_at <= now] # This is in O(n) independent of if we do it in the database ourself
     return flashcards
 
 
@@ -198,7 +190,7 @@ def update_deck(deck_id: int, deck: UpdateDeck, db: Session = Depends(get_db)):
     return db_deck
 
 
-@app.delete("/decks/{deck_id}")
+@app.delete("/decks/{deck_id}", response_model=Message)
 def delete_deck(deck_id: int, db: Session = Depends(get_db)):
     """Delete a specific deck."""
     db_deck = db.query(DBDeck).filter(DBDeck.id == deck_id).first()
@@ -211,8 +203,8 @@ def delete_deck(deck_id: int, db: Session = Depends(get_db)):
     return {"message": "Deck deleted successfully"}
 
 
-@app.post("/flashcards/{flashcard_id}/add-to-deck/{deck_id}")
-def add_flashcard_to_deck(flashcard_id: int, deck_id: int, db: Session = Depends(get_db)):
+@app.put("/decks/{deck_id}/flashcard/{flashcard_id}", response_model=Deck)
+def add_flashcard_to_deck(deck_id: int, flashcard_id: int, db: Session = Depends(get_db)):
     """
     Add a flashcard to a deck.
     
@@ -232,11 +224,12 @@ def add_flashcard_to_deck(flashcard_id: int, deck_id: int, db: Session = Depends
     flashcard.deck_id = deck_id
     
     db.commit()
+    db.refresh(deck) # we need to refresh as we are actually modifying the flashcards and not the deck itself
     
-    return {"message": "Flashcard added to deck successfully"}
+    return deck
 
 
-@app.post("/flashcards/{flashcard_id}/remove-from-deck")
+@app.delete("/flashcards/{flashcard_id}/deck", response_model=Message)
 def remove_flashcard_from_deck(flashcard_id: int, db: Session = Depends(get_db)):
     """
     Remove a flashcard from its deck.
@@ -258,28 +251,6 @@ def remove_flashcard_from_deck(flashcard_id: int, db: Session = Depends(get_db))
     db.commit()
     
     return {"message": "Flashcard removed from deck successfully"}
-
-
-@app.get("/decks/{deck_id}/due", response_model=List[Flashcard])
-def get_due_flashcards_from_deck(deck_id: int, db: Session = Depends(get_db)):
-    """
-    Get all flashcards in a specific deck that are due for review.
-    
-    This endpoint returns flashcards from a specific deck where the 
-    next_review_at date is in the past, meaning they are ready to be reviewed.
-    """
-    # Check if the deck exists
-    deck = db.query(DBDeck).filter(DBDeck.id == deck_id).first()
-    if deck is None:
-        raise HTTPException(status_code=404, detail="Deck not found")
-    
-    now = datetime.now()
-    due_cards = db.query(DBFlashcard).filter(
-        DBFlashcard.deck_id == deck_id,
-        DBFlashcard.next_review_at <= now
-    ).all()
-    
-    return due_cards
 
 
 if __name__ == "__main__":

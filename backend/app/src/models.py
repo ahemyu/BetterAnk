@@ -5,6 +5,9 @@ from sqlalchemy.orm import relationship
 from database import Base
 from enum import Enum
 
+class Message(BaseModel):
+    message: str
+
 ### Enums ###
 class ReviewFeedback(str, Enum):
     GOOD = "good"
@@ -73,7 +76,7 @@ class Review(BaseModel):
     model_config = ConfigDict(from_attributes=True) # to allow conversion from SQLAlchemy model
     id: int | None = None  # Optional because it will be assigned by the database
     flashcard_id: int
-    review_at: datetime = datetime.now()# what does this do? 
+    review_at: datetime = datetime.now()
     feedback: ReviewFeedback
 
 class Flashcard(BaseModel):
@@ -85,6 +88,5 @@ class Flashcard(BaseModel):
     created_at: datetime | None = None
     last_reviewed_at: datetime | None = None
     next_review_at: datetime = datetime.now()  # Initially due  immediately
-    # difficulty_factor: float = 2.5  # Default value in the SM-2 algorithm
     review_count: int = 0  # Number of times the flashcard has been reviewed
     deck_id: int | None = None  
