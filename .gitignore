@@ -11,3 +11,6 @@ spiku.jpg
 
 # overall project 
 .env 
+.vscode
+__pycache__
+.pytest_cache

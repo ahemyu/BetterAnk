@@ -6,3 +6,5 @@ psycopg2-binary>=2.9.9  # For PostgreSQL connection
 python-jose>=3.3.0      # For JWT token handling
 passlib>=1.7.4          # For password hashing
 python-dotenv>=1.0.0    # For environment variables
+pytest >= 8.3.0
+httpx >= 0.28.0
