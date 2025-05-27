@@ -16,6 +16,7 @@ async def root():
     return {"message": "Hello from BetterAnk API"}
 
 
+### flashcards ###
 @app.post("/flashcards", response_model=Flashcard)
 def create_flashcard(flashcard: Flashcard, db: Session = Depends(get_db)):
     """
@@ -75,6 +76,19 @@ def get_flashcard(flashcard_id: int, db: Session = Depends(get_db)):
     return db_flashcard
 
 
+@app.delete("/flashcards/{flashcard_id}", response_model=Message)
+def delete_flashcard(flashcard_id: int, db: Session = Depends(get_db)):
+    """Delete a specific flashcard."""
+    db_flashcard = db.query(DBFlashcard).filter(DBFlashcard.id == flashcard_id).first()
+    if db_flashcard is None:
+        raise HTTPException(status_code=404, detail="Flashcard not found")
+    
+    db.delete(db_flashcard)
+    db.commit()
+    
+    return {"message": "Flashcard deleted successfully"}
+
+### Review ###
 @app.post("/flashcards/{flashcard_id}/review", response_model=Review)
 def create_review(flashcard_id: int, feedback: str = Body(...), db: Session = Depends(get_db)):
     """
@@ -134,6 +148,15 @@ def create_deck(deck: Deck, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_deck)
     
+    return db_deck
+
+
+@app.get("/decks/{deck_id}", response_model=Deck)
+def get_deck(deck_id: int, db: Session = Depends(get_db)):
+    """Get a specific deck by ID."""
+    db_deck = db.query(DBDeck).filter(DBDeck.id == deck_id).first()
+    if db_deck is None:
+        raise HTTPException(status_code=404, detail="Deck not found")
     return db_deck
 
 
