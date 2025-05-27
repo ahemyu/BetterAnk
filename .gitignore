@@ -3,6 +3,7 @@ backend/venv
 backend/.env
 backend/app/__pycache__
 
+*venv
 # random internal stuff
 Overview.txt
 .curl.txt
