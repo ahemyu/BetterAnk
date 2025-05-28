@@ -6,12 +6,10 @@ backend/app/__pycache__
 *venv
 # random internal stuff
 Overview.txt
-.curl.txt
 notes.txt
 spiku.jpg
 
 # overall project 
-.env 
-.vscode
 __pycache__
 .pytest_cache
+.*
