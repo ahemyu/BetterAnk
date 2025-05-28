@@ -8,3 +8,5 @@ passlib>=1.7.4          # For password hashing
 python-dotenv>=1.0.0    # For environment variables
 pytest >= 8.3.0
 httpx >= 0.28.0
+bcrypt
+python-jose

@@ -1,9 +1,10 @@
 from fastapi import Body, FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from models import DBDeck, Deck, Flashcard, DBFlashcard, Message, Review, DBReview, ReviewFeedback, UpdateDeck
+from models import DBDeck, Deck, Flashcard, DBFlashcard, Message, Review, DBReview, ReviewFeedback, UpdateDeck, UserResponse, UserCreate, DBUser
 from database import engine, get_db, Base
 from datetime import datetime, timedelta
+from utils import hash_password
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -14,6 +15,34 @@ app = FastAPI(title="BetterAnk API")
 async def root():
     """Root endpoint that returns a welcome message."""
     return {"message": "Hello from BetterAnk API"}
+
+
+
+# TODO: add authentication, register, login, 
+### login and authentication stuff ###
+
+@app.post("/register", response_model=UserResponse)
+def register(user: UserCreate, db: Session = Depends(get_db)):
+    """Register a new user."""
+    # Check if username or email already exists
+    if db.query(DBUser).filter(DBUser.username == user.username).first():
+        raise HTTPException(status_code=400, detail="Username already exists")
+    if db.query(DBUser).filter(DBUser.email == user.email).first():
+        raise HTTPException(status_code=400, detail="Email already exists")
+
+    # Hash the password and create the user
+    hashed_password = hash_password(user.password)
+    db_user = DBUser(
+        username=user.username,
+        email=user.email,
+        hashed_password=hashed_password,
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+
+    return db_user
+
 
 
 ### flashcards ###
