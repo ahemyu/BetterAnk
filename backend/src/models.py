@@ -32,6 +32,10 @@ class DBFlashcard(Base):
     deck_id = Column(Integer, ForeignKey("decks.id"), nullable=True)  # Nullable because a card might not belong to a deck initially
     deck = relationship("DBDeck", back_populates="flashcards")
 
+    # Adding user relationship
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user = relationship("DBUser", back_populates="flashcards")
+
 class DBReview(Base):
     """SQLAlchemy model for reviews table in the database."""
     __tablename__ = "reviews"
@@ -42,6 +46,10 @@ class DBReview(Base):
     feedback = Column(SQLAlchemyEnum(ReviewFeedback), nullable=False)
 
     flashcard = relationship("DBFlashcard", back_populates="reviews")
+
+    # Adding user relationship
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user = relationship("DBUser", back_populates="reviews")
 
 class DBDeck(Base):
     """SQLAlchemy model for decks table in the database."""
@@ -55,6 +63,10 @@ class DBDeck(Base):
     # Relationship with flashcards
     flashcards = relationship("DBFlashcard", back_populates="deck", cascade="all, delete-orphan")  # cascade means that if a deck is deleted, all its flashcards will also be deleted
 
+    # Adding user relationship
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user = relationship("DBUser", back_populates="decks")
+
 class DBUser(Base):
     """SQLAlchemy model for users table in the database."""
     __tablename__ = "users"
@@ -64,6 +76,10 @@ class DBUser(Base):
     email = Column(String, unique=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
+
+    decks = relationship("DBDeck", back_populates="user", cascade="all, delete-orphan")
+    flashcards = relationship("DBFlashcard", back_populates="user", cascade="all, delete-orphan")
+    reviews = relationship("DBReview", back_populates="user", cascade="all, delete-orphan") 
 
 ### Pydantic models ###
 

@@ -1,10 +1,12 @@
 from fastapi import Body, FastAPI, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List
 from models import DBDeck, Deck, Flashcard, DBFlashcard, Message, Review, DBReview, ReviewFeedback, UpdateDeck, UserResponse, UserCreate, DBUser
 from database import engine, get_db, Base
 from datetime import datetime, timedelta
-from utils import hash_password
+from utils import hash_password, verify_password
+from auth import create_access_token, verify_access_token
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -16,10 +18,25 @@ async def root():
     """Root endpoint that returns a welcome message."""
     return {"message": "Hello from BetterAnk API"}
 
-
-
-# TODO: add authentication, register, login, 
 ### login and authentication stuff ###
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> DBUser:
+    """Get the current user from the JWT token."""
+    payload = verify_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    username = payload.get("sub")
+    if not username:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    db_user = db.query(DBUser).filter(DBUser.username == username).first()
+    if not db_user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return db_user
 
 @app.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
@@ -43,33 +60,65 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
     return db_user
 
+@app.post("/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """Authenticate a user and return a JWT token."""
+    # Find the user by username
+    db_user = db.query(DBUser).filter(DBUser.username == form_data.username).first()
+    if not db_user or not verify_password(form_data.password, db_user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
 
+    # Create a JWT token
+    access_token = create_access_token(data={"sub": db_user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/logout", response_model=Message)
+def logout():
+    """
+    Logout endpoint (client-side logout).
+    
+    Since JWTs are stateless, the client should delete the token.
+    This endpoint mainly serves as documentation and could be extended
+    for server-side token blacklisting in the future.
+    """
+    return {"message": "Successfully logged out. Please delete the token on client side."}
+
+@app.get("/me", response_model=UserResponse)
+def get_me(current_user: DBUser = Depends(get_current_user)):
+    """Get the current logged-in user."""
+    return current_user
 
 ### flashcards ###
 @app.post("/flashcards", response_model=Flashcard)
-def create_flashcard(flashcard: Flashcard, db: Session = Depends(get_db)):
+def create_flashcard(
+    flashcard: Flashcard, 
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
-    Create a new flashcard.
+    Create a new flashcard for the current user.
     
     This endpoint accepts flashcard data and saves it to the database.
     If a deck_id is provided, the flashcard is associated with that deck.
     """
-    # Check if a deck_id was provided and if that deck exists
+    # Check if a deck_id was provided and if that deck exists and belongs to user
     if flashcard.deck_id is not None:
-        deck = db.query(DBDeck).filter(DBDeck.id == flashcard.deck_id).first()
+        deck = db.query(DBDeck).filter(
+            DBDeck.id == flashcard.deck_id,
+            DBDeck.user_id == current_user.id
+        ).first()
         if deck is None:
-            raise HTTPException(status_code=404, detail="Deck not found")
+            raise HTTPException(status_code=404, detail="Deck not found or access denied")
     
     db_flashcard = DBFlashcard(
         front=flashcard.front,
         back=flashcard.back,
         created_at=datetime.now(),
         next_review_at=datetime.now(),
-        deck_id=flashcard.deck_id,  # This assigns the flashcard to the deck if deck_id is provided
-        # difficulty_factor=flashcard.difficulty_factor 
+        deck_id=flashcard.deck_id,
+        user_id=current_user.id 
     )
     
-    # Add to the database session and commit
     db.add(db_flashcard)
     db.commit()
     db.refresh(db_flashcard)
@@ -77,38 +126,51 @@ def create_flashcard(flashcard: Flashcard, db: Session = Depends(get_db)):
     return db_flashcard
 
 @app.get("/flashcards", response_model=List[Flashcard])
-def get_flashcards(due: bool = False, limit: int = 100, db: Session = Depends(get_db)):
+def get_flashcards(
+    due: bool = False, 
+    limit: int = 100, 
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
-    Get all flashcards with pagination.
-    
-    This endpoint returns all flashcards from the database with optional pagination.
+    Get all flashcards for the current user with pagination.
     """
-    query = db.query(DBFlashcard)
+    query = db.query(DBFlashcard).filter(DBFlashcard.user_id == current_user.id)
 
     if due:
         now = datetime.now()
-        # Filter flashcards that are due for review
         query = query.filter(DBFlashcard.next_review_at <= now)
 
     return query.limit(limit).all()
 
 @app.get("/flashcards/{flashcard_id}", response_model=Flashcard)
-def get_flashcard(flashcard_id: int, db: Session = Depends(get_db)):
+def get_flashcard(
+    flashcard_id: int, 
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Get a specific flashcard by ID.
-    
-    This endpoint retrieves a single flashcard by its ID from the database.
     """
-    db_flashcard = db.query(DBFlashcard).filter(DBFlashcard.id == flashcard_id).first()
+    db_flashcard = db.query(DBFlashcard).filter(
+        DBFlashcard.id == flashcard_id,
+        DBFlashcard.user_id == current_user.id
+    ).first()
     if db_flashcard is None:
         raise HTTPException(status_code=404, detail="Flashcard not found")
     return db_flashcard
 
-
 @app.delete("/flashcards/{flashcard_id}", response_model=Message)
-def delete_flashcard(flashcard_id: int, db: Session = Depends(get_db)):
+def delete_flashcard(
+    flashcard_id: int, 
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Delete a specific flashcard."""
-    db_flashcard = db.query(DBFlashcard).filter(DBFlashcard.id == flashcard_id).first()
+    db_flashcard = db.query(DBFlashcard).filter(
+        DBFlashcard.id == flashcard_id,
+        DBFlashcard.user_id == current_user.id
+    ).first()
     if db_flashcard is None:
         raise HTTPException(status_code=404, detail="Flashcard not found")
     
@@ -119,15 +181,20 @@ def delete_flashcard(flashcard_id: int, db: Session = Depends(get_db)):
 
 ### Review ###
 @app.post("/flashcards/{flashcard_id}/review", response_model=Review)
-def create_review(flashcard_id: int, feedback: str = Body(...), db: Session = Depends(get_db)):
+def create_review(
+    flashcard_id: int, 
+    feedback: str = Body(...), 
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Create a new review for a flashcard.
-    
-    This endpoint allows recording the outcome of reviewing a flashcard,
-    with feedback that can be 'good', 'mid', or 'bad'.
     """
-    # Check if the flashcard exists
-    flashcard = db.query(DBFlashcard).filter(DBFlashcard.id == flashcard_id).first()
+    # Check if the flashcard exists and belongs to current user
+    flashcard = db.query(DBFlashcard).filter(
+        DBFlashcard.id == flashcard_id,
+        DBFlashcard.user_id == current_user.id
+    ).first()
     if flashcard is None:
         raise HTTPException(status_code=404, detail="Flashcard not found")
     
@@ -136,14 +203,15 @@ def create_review(flashcard_id: int, feedback: str = Body(...), db: Session = De
     db_review = DBReview(
         flashcard_id=flashcard_id,
         review_at=now,
-        feedback=feedback
+        feedback=feedback,
+        user_id=current_user.id
     )
     
     # Update the flashcard's review information
     flashcard.last_reviewed_at = now
     flashcard.review_count += 1
 
-    # placeholder for review logic
+    # Review scheduling logic
     if feedback == ReviewFeedback.GOOD:
         flashcard.next_review_at = now + timedelta(days=3)
     elif feedback == ReviewFeedback.MID:
@@ -151,26 +219,27 @@ def create_review(flashcard_id: int, feedback: str = Body(...), db: Session = De
     else:  # BAD
         flashcard.next_review_at = now + timedelta(minutes=2)
     
-    # Add the review to the database and commit
     db.add(db_review)
     db.commit()
     db.refresh(db_review)
     
     return db_review
 
-
 ### Deck related ###
 @app.post("/decks", response_model=Deck)
-def create_deck(deck: Deck, db: Session = Depends(get_db)):
+def create_deck(
+    deck: Deck, 
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
-    Create a new deck.
-    
-    This endpoint accepts deck data and saves it to the database.
+    Create a new deck for the current user.
     """
     db_deck = DBDeck(
         name=deck.name,
         description=deck.description,
-        created_at=datetime.now()
+        created_at=datetime.now(),
+        user_id=current_user.id
     )
     
     db.add(db_deck)
@@ -179,54 +248,75 @@ def create_deck(deck: Deck, db: Session = Depends(get_db)):
     
     return db_deck
 
-
 @app.get("/decks/{deck_id}", response_model=Deck)
-def get_deck(deck_id: int, db: Session = Depends(get_db)):
+def get_deck(
+    deck_id: int, 
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get a specific deck by ID."""
-    db_deck = db.query(DBDeck).filter(DBDeck.id == deck_id).first()
+    db_deck = db.query(DBDeck).filter(
+        DBDeck.id == deck_id,
+        DBDeck.user_id == current_user.id
+    ).first()
     if db_deck is None:
         raise HTTPException(status_code=404, detail="Deck not found")
     return db_deck
 
-
 @app.get("/decks", response_model=List[Deck])
-def get_decks(limit: int = 100, db: Session = Depends(get_db)):
+def get_decks(
+    limit: int = 100, 
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
-    Get all decks with pagination.
-    
-    This endpoint returns all decks from the database with optional pagination.
+    Get all decks for the current user with pagination.
     """
-    decks = db.query(DBDeck).limit(limit).all()
-
+    decks = db.query(DBDeck).filter(DBDeck.user_id == current_user.id).limit(limit).all()
     return decks
 
-
 @app.get("/decks/{deck_id}/flashcards", response_model=List[Flashcard])
-def get_deck_flashcards(deck_id: int, due: bool = False, limit: int = 100, db: Session = Depends(get_db)):
-    """Either get all flashcards in a deck or only the due ones."""
-    # Check if the deck exists
-    db_deck = db.query(DBDeck).filter(DBDeck.id == deck_id).first()
+def get_deck_flashcards(
+    deck_id: int, 
+    due: bool = False, 
+    limit: int = 100, 
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get flashcards in a deck."""
+    # Check if the deck exists and belongs to current user
+    db_deck = db.query(DBDeck).filter(
+        DBDeck.id == deck_id,
+        DBDeck.user_id == current_user.id
+    ).first()
     if db_deck is None:
         raise HTTPException(status_code=404, detail="Deck not found")
     
-    # Query flashcards that belong to this deck
-    flashcards = db.query(DBFlashcard).filter(DBFlashcard.deck_id == deck_id).limit(limit).all()
+    query = db.query(DBFlashcard).filter(
+        DBFlashcard.deck_id == deck_id,
+        DBFlashcard.user_id == current_user.id
+    )
     
     if due:
         now = datetime.now()
-        # Filter flashcards that are due for review
-        flashcards = [card for card in flashcards if card.next_review_at <= now] # This is in O(n) independent of if we do it in the database ourself
-    return flashcards
-
+        query = query.filter(DBFlashcard.next_review_at <= now)
+    
+    return query.limit(limit).all()
 
 @app.put("/decks/{deck_id}", response_model=Deck)
-def update_deck(deck_id: int, deck: UpdateDeck, db: Session = Depends(get_db)):
+def update_deck(
+    deck_id: int, 
+    deck: UpdateDeck, 
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Update a specific deck.
-    
-    This endpoint updates the name and/or description of a deck.
     """
-    db_deck = db.query(DBDeck).filter(DBDeck.id == deck_id).first()
+    db_deck = db.query(DBDeck).filter(
+        DBDeck.id == deck_id,
+        DBDeck.user_id == current_user.id
+    ).first()
     if db_deck is None:
         raise HTTPException(status_code=404, detail="Deck not found")
     
@@ -241,11 +331,17 @@ def update_deck(deck_id: int, deck: UpdateDeck, db: Session = Depends(get_db)):
     
     return db_deck
 
-
 @app.delete("/decks/{deck_id}", response_model=Message)
-def delete_deck(deck_id: int, db: Session = Depends(get_db)):
+def delete_deck(
+    deck_id: int, 
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Delete a specific deck."""
-    db_deck = db.query(DBDeck).filter(DBDeck.id == deck_id).first()
+    db_deck = db.query(DBDeck).filter(
+        DBDeck.id == deck_id,
+        DBDeck.user_id == current_user.id
+    ).first()
     if db_deck is None:
         raise HTTPException(status_code=404, detail="Deck not found")
     
@@ -254,21 +350,28 @@ def delete_deck(deck_id: int, db: Session = Depends(get_db)):
     
     return {"message": "Deck deleted successfully"}
 
-
 @app.put("/decks/{deck_id}/flashcard/{flashcard_id}", response_model=Deck)
-def add_flashcard_to_deck(deck_id: int, flashcard_id: int, db: Session = Depends(get_db)):
+def add_flashcard_to_deck(
+    deck_id: int, 
+    flashcard_id: int, 
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
-    Add a flashcard to a deck.
-    
-    This endpoint assigns a flashcard to a specific deck.
+    Add a flashcard to a deck (both must belong to current user).
     """
-    # Check if the flashcard exists
-    flashcard = db.query(DBFlashcard).filter(DBFlashcard.id == flashcard_id).first()
+    # Check if the flashcard exists and belongs to current user
+    flashcard = db.query(DBFlashcard).filter(
+        DBFlashcard.id == flashcard_id,
+        DBFlashcard.user_id == current_user.id
+    ).first()
     if flashcard is None:
         raise HTTPException(status_code=404, detail="Flashcard not found")
     
-    # Check if the deck exists
-    deck = db.query(DBDeck).filter(DBDeck.id == deck_id).first()
+    deck = db.query(DBDeck).filter(
+        DBDeck.id == deck_id,
+        DBDeck.user_id == current_user.id
+    ).first()
     if deck is None:
         raise HTTPException(status_code=404, detail="Deck not found")
     
@@ -276,20 +379,24 @@ def add_flashcard_to_deck(deck_id: int, flashcard_id: int, db: Session = Depends
     flashcard.deck_id = deck_id
     
     db.commit()
-    db.refresh(deck) # we need to refresh as we are actually modifying the flashcards and not the deck itself
+    db.refresh(deck)
     
     return deck
 
-
 @app.delete("/flashcards/{flashcard_id}/deck", response_model=Message)
-def remove_flashcard_from_deck(flashcard_id: int, db: Session = Depends(get_db)):
+def remove_flashcard_from_deck(
+    flashcard_id: int, 
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Remove a flashcard from its deck.
-    
-    This endpoint removes a flashcard's association with any deck.
     """
     # Check if the flashcard exists
-    flashcard = db.query(DBFlashcard).filter(DBFlashcard.id == flashcard_id).first()
+    flashcard = db.query(DBFlashcard).filter(
+        DBFlashcard.id == flashcard_id,
+        DBFlashcard.user_id == current_user.id
+    ).first()
     if flashcard is None:
         raise HTTPException(status_code=404, detail="Flashcard not found")
     
@@ -303,7 +410,6 @@ def remove_flashcard_from_deck(flashcard_id: int, db: Session = Depends(get_db))
     db.commit()
     
     return {"message": "Flashcard removed from deck successfully"}
-
 
 if __name__ == "__main__":
     import uvicorn
