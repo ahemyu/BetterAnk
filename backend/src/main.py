@@ -1,5 +1,6 @@
 from fastapi import Body, FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 from models import DBDeck, Deck, Flashcard, DBFlashcard, Message, Review, DBReview, ReviewFeedback, UpdateDeck, UserResponse, UserCreate, DBUser
@@ -12,6 +13,14 @@ from auth import create_access_token, verify_access_token
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="BetterAnk API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  #TODO: Replace with frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/", response_model=Message)
 async def root():
@@ -72,21 +81,20 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     access_token = create_access_token(data={"sub": db_user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.post("/logout", response_model=Message)
-def logout():
-    """
-    Logout endpoint (client-side logout).
-    
-    Since JWTs are stateless, the client should delete the token.
-    This endpoint mainly serves as documentation and could be extended
-    for server-side token blacklisting in the future.
-    """
-    return {"message": "Successfully logged out. Please delete the token on client side."}
-
 @app.get("/me", response_model=UserResponse)
 def get_me(current_user: DBUser = Depends(get_current_user)):
     """Get the current logged-in user."""
     return current_user
+
+@app.delete("/me", response_model=Message)
+def delete_me(
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete the current user's account."""
+    db.delete(current_user)
+    db.commit()
+    return {"message": "User account deleted successfully"}
 
 ### flashcards ###
 @app.post("/flashcards", response_model=Flashcard)
