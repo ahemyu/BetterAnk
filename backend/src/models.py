@@ -24,7 +24,7 @@ class DBFlashcard(Base):
     back = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
     last_reviewed_at = Column(DateTime, nullable=True)
-    next_review_at = Column(DateTime, default=datetime.now)
+    next_review_at = Column(DateTime, default=datetime.now, index=True)
     review_count = Column(Integer, default=0)
     easiness_factor = Column(Float, default=2.5, nullable=False)
     interval = Column(Integer, default=1, nullable=False)
@@ -32,11 +32,11 @@ class DBFlashcard(Base):
     reviews = relationship("DBReview", back_populates="flashcard", cascade="all, delete-orphan") # cascade means that if a flashcard is deleted, all its reviews will also be deleted
 
     # Adding deck relationship
-    deck_id = Column(Integer, ForeignKey("decks.id"), nullable=True)  # Nullable because a card might not belong to a deck initially
+    deck_id = Column(Integer, ForeignKey("decks.id"), nullable=True, index=True)  # Nullable because a card might not belong to a deck initially
     deck = relationship("DBDeck", back_populates="flashcards")
 
     # Adding user relationship
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     user = relationship("DBUser", back_populates="flashcards")
 
 class DBReview(Base):
@@ -44,14 +44,14 @@ class DBReview(Base):
     __tablename__ = "reviews"
 
     id = Column(Integer, primary_key=True, index=True)
-    flashcard_id = Column(Integer, ForeignKey("flashcards.id"), nullable=False)
+    flashcard_id = Column(Integer, ForeignKey("flashcards.id"), nullable=False, index=True)
     review_at = Column(DateTime, default=datetime.now, nullable=False)
     feedback = Column(SQLAlchemyEnum(ReviewFeedback), nullable=False)
 
     flashcard = relationship("DBFlashcard", back_populates="reviews")
 
     # Adding user relationship
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     user = relationship("DBUser", back_populates="reviews")
 
 class DBDeck(Base):
@@ -59,7 +59,7 @@ class DBDeck(Base):
     __tablename__ = "decks"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    name = Column(String, nullable=False, index=True)
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     
@@ -67,7 +67,7 @@ class DBDeck(Base):
     flashcards = relationship("DBFlashcard", back_populates="deck", cascade="all, delete-orphan")  # cascade means that if a deck is deleted, all its flashcards will also be deleted
 
     # Adding user relationship
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     user = relationship("DBUser", back_populates="decks")
 
 class DBUser(Base):
