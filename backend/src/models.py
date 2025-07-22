@@ -1,6 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SQLAlchemyEnum
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SQLAlchemyEnum, Float
 from sqlalchemy.orm import relationship
 from database import Base
 from enum import Enum
@@ -26,6 +26,9 @@ class DBFlashcard(Base):
     last_reviewed_at = Column(DateTime, nullable=True)
     next_review_at = Column(DateTime, default=datetime.now)
     review_count = Column(Integer, default=0)
+    easiness_factor = Column(Float, default=2.5, nullable=False)
+    interval = Column(Integer, default=1, nullable=False)
+    repetitions = Column(Integer, default=0, nullable=False)
     reviews = relationship("DBReview", back_populates="flashcard", cascade="all, delete-orphan") # cascade means that if a flashcard is deleted, all its reviews will also be deleted
 
     # Adding deck relationship
@@ -104,6 +107,10 @@ class Review(BaseModel):
     review_at: datetime = datetime.now()
     feedback: ReviewFeedback
 
+class ReviewCreate(BaseModel):
+    """Request body for creating a review."""
+    feedback: ReviewFeedback
+
 class Flashcard(BaseModel):
     """Represents a flashcard."""
     model_config = ConfigDict(from_attributes=True) # to allow conversion from SQLAlchemy model
@@ -114,6 +121,9 @@ class Flashcard(BaseModel):
     last_reviewed_at: datetime | None = None
     next_review_at: datetime = datetime.now()  # Initially due  immediately
     review_count: int = 0  # Number of times the flashcard has been reviewed
+    easiness_factor: float = 2.5
+    interval: int = 1
+    repetitions: int = 0
     deck_id: int | None = None  
 
 class UserCreate(BaseModel):

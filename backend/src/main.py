@@ -3,7 +3,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
-from models import DBDeck, Deck, Flashcard, DBFlashcard, Message, Review, DBReview, ReviewFeedback, UpdateDeck, UserResponse, UserCreate, DBUser
+from spaced_repetition import SM2Algo
+from models import DBDeck, Deck, Flashcard, DBFlashcard, Message, Review, DBReview, ReviewFeedback, UpdateDeck, UserResponse, UserCreate, DBUser, ReviewCreate
 from database import engine, get_db, Base
 from datetime import datetime, timedelta
 from utils import hash_password, verify_password
@@ -191,12 +192,12 @@ def delete_flashcard(
 @app.post("/flashcards/{flashcard_id}/review", response_model=Review)
 def create_review(
     flashcard_id: int, 
-    feedback: str = Body(...), 
+    review_data: ReviewCreate, 
     current_user: DBUser = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Create a new review for a flashcard.
+    Create a new review for a flashcard and update its next review date based on the SM-2 algorithm.
     """
     # Check if the flashcard exists and belongs to current user
     flashcard = db.query(DBFlashcard).filter(
@@ -205,28 +206,14 @@ def create_review(
     ).first()
     if flashcard is None:
         raise HTTPException(status_code=404, detail="Flashcard not found")
-    
-    # Create a new review instance
-    now = datetime.now()
+    # determine next_review date and other sm2 algo related stuff
+    SM2Algo.update_flashcard(feedback=review_data.feedback, flashcard=flashcard)
     db_review = DBReview(
         flashcard_id=flashcard_id,
-        review_at=now,
-        feedback=feedback,
+        review_at=datetime.now(),
+        feedback=review_data.feedback,
         user_id=current_user.id
     )
-    
-    # Update the flashcard's review information
-    flashcard.last_reviewed_at = now
-    flashcard.review_count += 1
-
-    # Review scheduling logic
-    if feedback == ReviewFeedback.GOOD:
-        flashcard.next_review_at = now + timedelta(days=3)
-    elif feedback == ReviewFeedback.MID:
-        flashcard.next_review_at = now + timedelta(days=1)
-    else:  # BAD
-        flashcard.next_review_at = now + timedelta(minutes=2)
-    
     db.add(db_review)
     db.commit()
     db.refresh(db_review)
