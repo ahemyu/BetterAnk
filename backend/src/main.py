@@ -11,7 +11,6 @@ from utils import hash_password, verify_password
 from auth import create_access_token, verify_access_token
 
 # Create database tables
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="BetterAnk API")
 

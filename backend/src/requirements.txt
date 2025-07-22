@@ -1,13 +1,10 @@
-fastapi>=0.104.0 #0.115.12
-uvicorn>=0.23.2 # 0.34.0
-sqlalchemy>=2.0.22 #2.0.40
-pydantic>=2.4.2 # 2.11.3
-psycopg2-binary>=2.9.9  # For PostgreSQL connection
-python-jose>=3.3.0      # For JWT token handling
-passlib>=1.7.4          # For password hashing
-python-dotenv>=1.0.0    # For environment variables
-pytest >= 8.3.0
-httpx >= 0.28.0
-bcrypt
-python-jose
-python-multipart
+fastapi==0.111.0
+uvicorn==0.30.1
+SQLAlchemy==2.0.30
+python-dotenv==1.0.1
+psycopg2-binary==2.9.9
+passlib==1.7.4
+bcrypt==4.1.3
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.9
+alembic==1.13.1
