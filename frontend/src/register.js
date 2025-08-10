@@ -24,8 +24,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify(body)
             });
 
-            const data = await response.json(); //data is now the auth token
-            console.log(data)
+            if(response.ok){
+                window.location.href = "login.html" //ToDo: call /login immediately for auto login
+            }
         }catch(error){
             console.log(error); //TODO: do smth more useful 
         }

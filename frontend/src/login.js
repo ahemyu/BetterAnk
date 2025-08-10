@@ -13,22 +13,30 @@ document.addEventListener("DOMContentLoaded", () => {
         body.append("username", username);
         body.append("password", password);
 
-        try {
-            // now we need to send username and password to /login endpoint from our backend to get the auth_token back and store it in local storage
-            const response = await fetch("/login", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
-                },
-                body: body.toString()
-            });
+       console.log("Submitting login form...");
 
-            const data = await response.json(); //data is now the auth token
+    try {
+        const response = await fetch("/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: body.toString()
+        });
 
-            localStorage.setItem('authToken', data.access_token);
-
-        }catch(error){
-            console.log(error); //TODO: do smth more useful 
+        if (!response.ok) {
+            console.error("Login failed");
+            return;
         }
-    });
+
+        const data = await response.json();
+
+        localStorage.setItem('authToken', data.access_token);
+
+        window.location.href = "start.html";
+
+    }catch (error) {
+        console.error("Error during login:", error);
+    }
+        });
 });
