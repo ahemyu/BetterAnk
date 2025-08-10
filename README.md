@@ -20,6 +20,7 @@ Then you can create and get decks, flashcards, reviews via the api
 The review system is based on the sm2 implementation of [alankan886/SuperMemo2](https://github.com/alankan886/SuperMemo2)
 ### frontend
 I want to try to use vanilla js for the frontend to actually learn some web concepts deeply. 
-This frontend ofc will call the FastAPI backend.
+This frontend ofc will call the FastAPI backend endpoints.
+I will serve the backend and static frontend file from the same FastAPI backend. 
 #### See you Space Cowboy ...
 ![spiku](https://github.com/user-attachments/assets/9089303e-fff8-43d7-ad22-2b01a56509a0)

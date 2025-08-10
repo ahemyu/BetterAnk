@@ -1,26 +1,30 @@
-from fastapi import Body, FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 from spaced_repetition import SM2Algo
-from models import DBDeck, Deck, Flashcard, DBFlashcard, Message, Review, DBReview, ReviewFeedback, UpdateDeck, UserResponse, UserCreate, DBUser, ReviewCreate
-from database import engine, get_db, Base
-from datetime import datetime, timedelta
+from models import DBDeck, Deck, Flashcard, DBFlashcard, Message, Review, DBReview, UpdateDeck, UserResponse, UserCreate, DBUser, ReviewCreate
+from database import get_db
+from datetime import datetime
 from utils import hash_password, verify_password
 from auth import create_access_token, verify_access_token
-
-# Create database tables
+from fastapi.staticfiles import StaticFiles
+import os
 
 app = FastAPI(title="BetterAnk API")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  #TODO: Replace with frontend URL
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# we serve frontend as static files from the same server 
+frontend_path = os.path.join(os.path.dirname(__file__), "../../frontend/src")
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+## We don't need this for now as now both backend and frontend are served from the same domain and port, so no same-origin policy to prevent ##  
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["http://localhost:3000"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 @app.get("/", response_model=Message)
 async def root():
