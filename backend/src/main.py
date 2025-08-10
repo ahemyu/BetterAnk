@@ -22,14 +22,7 @@ app = FastAPI(title="BetterAnk API")
 #     allow_methods=["*"],
 #     allow_headers=["*"],
 # )
-
-@app.get("/", response_model=Message)
-async def root():
-    """Root endpoint that returns a welcome message."""
-    return {"message": "Hello from BetterAnk API"}
-
 ### login and authentication stuff ###
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> DBUser:
