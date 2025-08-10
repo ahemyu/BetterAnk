@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } 
         try {
             // now we need to send username and password to /login endpoint from our backend to get the auth_token back and store it in local storage
-            const response = await fetch("/register", {
+            const registerResponse = await fetch("/register", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -24,9 +24,34 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify(body)
             });
 
-            if(response.ok){
-                window.location.href = "login.html" //ToDo: call /login immediately for auto login
+            if(!registerResponse.ok){
+                console.error("Registration failed!");
+                return;
             }
+
+            const loginBody = new URLSearchParams();
+            loginBody.append("username", username);
+            loginBody.append("password", password);
+
+            const loginResponse = await fetch("/login",{
+                method: "POST",
+                headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: loginBody 
+            });
+
+            if(!loginResponse.ok){
+                console.error("Login Failed, please try again");
+                window.location.href = "login.html";
+                return;
+            }
+
+            const loginData = await loginResponse.json();
+            localStorage.setItem("authToken", loginData.access_token);
+            window.location.href = "start.html";
+
+
         }catch(error){
             console.log(error); //TODO: do smth more useful 
         }
