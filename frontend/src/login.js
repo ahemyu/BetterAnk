@@ -5,8 +5,8 @@ document.addEventListener("DOMContentLoaded", () => {
     form.addEventListener("submit", async (event) => {
         event.preventDefault(); //stop the page from reloading
 
-        const username = document.getElementById("username");
-        const password = document.getElementById("password");
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
 
         const body = new URLSearchParams();
 

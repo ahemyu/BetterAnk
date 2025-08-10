@@ -14,9 +14,6 @@ import os
 
 app = FastAPI(title="BetterAnk API")
 
-# we serve frontend as static files from the same server 
-frontend_path = os.path.join(os.path.dirname(__file__), "../../frontend/src")
-app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 ## We don't need this for now as now both backend and frontend are served from the same domain and port, so no same-origin policy to prevent ##  
 # app.add_middleware(
 #     CORSMiddleware,
@@ -81,8 +78,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not db_user or not verify_password(form_data.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    # Create a JWT token
     access_token = create_access_token(data={"sub": db_user.username})
+    # Create a JWT token
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/me", response_model=UserResponse)
@@ -408,6 +405,10 @@ def remove_flashcard_from_deck(
     db.commit()
     
     return {"message": "Flashcard removed from deck successfully"}
+
+# we serve frontend as static files from the same server 
+frontend_path = os.path.join(os.path.dirname(__file__), "../../frontend/src")
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn
