@@ -2,6 +2,24 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const authToken = localStorage.getItem("authToken");
     const header = {"Authorization": `Bearer ${authToken}`, "Content-Type": "application/json"}
+
+
+    function createDeckListItem(deck) {
+        // to create a li element out of a deck that can also be deleted
+            const li = document.createElement("li");
+            const nameSpan = document.createElement("span");
+            const deleteButton = document.createElement("button");
+
+            nameSpan.textContent =  deck.name;
+            deleteButton.textContent = "  ❌";
+            deleteButton.classList.add("delete-deck");
+            deleteButton.dataset.id = deck.id;
+            li.appendChild(nameSpan);
+            li.appendChild(deleteButton);
+
+            return li;
+        }
+
     if(!authToken){
         // if no auth token redirect to login page
         window.location.href = "login.html";
@@ -43,7 +61,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.error("Error while fetching decks");
         }
         const decks = await decksResponse.json();
-        console.log(decks); //TODO REMOVE ME 
 
         // now display the decks in a list, for that we need to append <li> elements to the container
         const deckDiv = document.getElementById("decks-container");
@@ -51,12 +68,27 @@ document.addEventListener("DOMContentLoaded", async () => {
         const fragment = document.createDocumentFragment();
 
         decks.forEach(deck => {
-            const li = document.createElement("li");
-            li.textContent = deck.name;
-            fragment.appendChild(li);
+            fragment.appendChild(createDeckListItem(deck));
         });
-
         deckUl.appendChild(fragment);
+
+        deckUl.addEventListener("click", async (event) => {
+        if (event.target.classList.contains("delete-deck")) {
+            const deckId = event.target.dataset.id;
+
+            const deleteResponse = await fetch(`/decks/${deckId}`, {
+                method: "DELETE",
+                headers: header
+            });
+
+            if (deleteResponse.ok) {
+                // Remove the <li> from the DOM
+                event.target.parentElement.remove();
+            } else {
+                console.error("Failed to delete deck");
+            }
+        }
+    });
     }catch (error){
         console.log("Error while displaying Decks", error)
     }
@@ -90,10 +122,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const deckUl = deckDiv.querySelector("#decks-list");
 
                 const newDeck = await createDeckResponse.json();
-                const li = document.createElement("li");
-                li.textContent = newDeck.name;
-                deckUl.appendChild(li);
-
+                deckUl.appendChild(createDeckListItem(newDeck));
                 form.reset();
             }
             });
