@@ -34,16 +34,18 @@ async function apiDelete(path) {
 // =====================
 function createDeckListItem(deck) {
   const li = document.createElement("li");
-  const nameSpan = document.createElement("span");
+  const link = document.createElement("a");
   const deleteButton = document.createElement("button");
-
-  nameSpan.textContent = deck.name;
+  // Need to add a <a> tag inside the li element that contains the 
+  link.textContent = deck.name;
+  link.href = `deck.html?deckId=${deck.id}`
   deleteButton.textContent = "❌";
   deleteButton.classList.add("delete-deck");
   deleteButton.dataset.id = deck.id;
 
-  li.appendChild(nameSpan);
+  li.appendChild(link);
   li.appendChild(deleteButton);
+
   return li;
 }
 
