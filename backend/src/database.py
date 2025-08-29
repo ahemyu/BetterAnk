@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 
 # PostgreSQL connection string
 # Format: postgresql://username:password@host:port/database_name
-SQLALCHEMY_DATABASE_URL = "postgresql://ahemyu:lol@localhost:5432/betterankdb"
+SQLALCHEMY_DATABASE_URL = "postgresql://ahemyu:lol@localhost:5433/betterankdb"
 
 # Create the SQLAlchemy engine
 engine = create_engine(SQLALCHEMY_DATABASE_URL)

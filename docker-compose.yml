@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16
+    container_name: betterank-db
+    restart: always
+    environment:
+      POSTGRES_USER: ahemyu
+      POSTGRES_PASSWORD: lol
+      POSTGRES_DB: betterankdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
