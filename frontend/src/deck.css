@@ -1,0 +1,8 @@
+.modal {
+    /* some stuff needs to go here I guesss */
+    display: block;
+}
+
+.modal.hidden {
+  display: none;
+}

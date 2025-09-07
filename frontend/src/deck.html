@@ -12,7 +12,18 @@
     <button type="button" id="review-button"> Start Review </button>
     <button type="button" id="back-to-dashboard"> Back to Decks</button>
     <!-- and then we also need to a button like 'start review' and 'back to Decks Dashboard' -->
-
+    <button type="button" id="add-flashcard"> Add New Flashcard</button> <!-- SO upon clicking this the following should appear-->
+    <div id="flashcard-modal" class="modal hidden">
+        <div class="modal content"> 
+            <h2> Add Flashcard</h2>
+            <form id="add-flashcard-form"> 
+                <input type="text" id="front" placeholder="Front" required/> 
+                <input type="text" id="back" placeholder="Back" required/>
+                <button type="submit" id="add-flashcard-button"> Add Card</button> 
+                <button type="button" id="add-flashcard-cancel"> Cancel</button> 
+            </form>
+        </div>    
+    </div>
     <script src="deck.js"></script>
 </body>
 </html>

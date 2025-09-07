@@ -13,6 +13,16 @@ async function apiGet(path) {
   return res.json();
 }
 
+async function apiPost(path, body) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`POST ${path} failed`);
+  return res.json();
+}
+
 // =====================
 // Page Logic
 // =====================
@@ -46,8 +56,7 @@ async function getNumberOfFlashcards() {
 
 async function startReview(){
   //this just needs to link to review page basically which should display all due flashcards one after the other
-  document.getElementById("re
-    view-button").addEventListener("click", () => {
+  document.getElementById("review-button").addEventListener("click", () => {
     window.location.href = "review.html"; //TODO: Adjust this ya salame
   });
 }
@@ -58,6 +67,39 @@ async function backToDecks(){
   });
 }
 
+//TODO: add function that creates form to allow for users to create new flashcards for the current deck 
+
+async function addFlashcardModal(){
+  // clicking on button 'add-flashcard' removes 'hidden' class of 'flashcard-modal' to make it visible 
+  const flashcardModalButton = document.getElementById("add-flashcard");
+  const addFlashCardModal = document.getElementById("flashcard-modal");
+  // add eventlistener for event click, 
+  flashcardModalButton.addEventListener("click", () => {
+    // remove hidden class 
+    addFlashCardModal.classList.remove("hidden");
+  });
+  //when "add-flashcard-cancel" is clicked OR outside of Modal, add the hidden class back to the modal. 
+
+}
+async function closeModal(){
+  const addFlashCardModal = document.getElementById("flashcard-modal");
+  const cancelButton = document.getElementById("add-flashcard-cancel");
+  cancelButton.addEventListener("click", () => {
+    addFlashCardModal.classList.add("hidden"); // if we click the cancel button we put hidden back to the modal element
+  });
+  // now if we click outside of the modal ,we wanna hide modal as well
+  addFlashCardModal.addEventListener("click", (event) => {
+    if(event.target === addFlashCardModal){
+      addFlashCardModal.classList.add("hidden");
+    }
+  });
+  // if we press 'esc' key we also want to close the modal 
+  document.addEventListener("keydown", (event) => {
+    if(event.key === "Escape" && !addFlashCardModal.classList.contains("hidden")){
+      addFlashCardModal.classList.add("hidden");
+    }
+  })
+}
 // =====================
 // Init
 // =====================
@@ -66,12 +108,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = "login.html";
     return;
   }
-
   try {
-    getNumberOfFlashcards();
-    startReview();
-    backToDecks();
-
+    await getNumberOfFlashcards();
+    await startReview();
+    await backToDecks();
+    await addFlashcardModal();
   } catch (err) {
     console.error(err);
   }
