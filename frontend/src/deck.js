@@ -14,6 +14,7 @@ async function apiGet(path) {
 }
 
 async function apiPost(path, body) {
+  console.log("I WAS CALLED");
   const res = await fetch(path, {
     method: "POST",
     headers,
@@ -76,33 +77,71 @@ async function addFlashcardModal(){
   // add eventlistener for event click, 
   flashcardModalButton.addEventListener("click", () => {
     // remove hidden class 
-    addFlashCardModal.classList.remove("hidden");
+    addFlashCardModal.classList.add("show");
   });
-  //when "add-flashcard-cancel" is clicked OR outside of Modal, add the hidden class back to the modal. 
 
 }
 async function closeModal(){
   const addFlashCardModal = document.getElementById("flashcard-modal");
   const cancelButton = document.getElementById("add-flashcard-cancel");
   cancelButton.addEventListener("click", () => {
-    addFlashCardModal.classList.add("hidden"); // if we click the cancel button we put hidden back to the modal element
+    addFlashCardModal.classList.remove("show"); 
   });
   // now if we click outside of the modal ,we wanna hide modal as well
   addFlashCardModal.addEventListener("click", (event) => {
     if(event.target === addFlashCardModal){
-      addFlashCardModal.classList.add("hidden");
+      addFlashCardModal.classList.remove("show");
     }
   });
   // if we press 'esc' key we also want to close the modal 
   document.addEventListener("keydown", (event) => {
-    if(event.key === "Escape" && !addFlashCardModal.classList.contains("hidden")){
-      addFlashCardModal.classList.add("hidden");
+    if(event.key === "Escape" && addFlashCardModal.classList.contains("show")){
+      addFlashCardModal.classList.remove("show");
     }
   })
+}
+
+async function addNewCard() {
+  const form = document.getElementById("add-flashcard-form");
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault(); // stop form from refreshing the page
+
+    const front = document.getElementById("front").value;
+    const back = document.getElementById("back").value;
+
+    const params = new URLSearchParams(window.location.search);
+    let deckId = null;
+    if (params.has("deckId")) {
+      deckId = parseInt(params.get("deckId"));
+    }
+
+    const body = {
+      front,
+      back,
+      deck_id: deckId,
+    };
+
+    console.log("Posting flashcard:", body);
+
+    try {
+      await apiPost("/flashcards", body);
+      // After successful save:
+      await getNumberOfFlashcards(); // refresh flashcard count
+      // hide modal
+      document.getElementById("flashcard-modal").classList.remove("show");
+      // reset form fields
+      form.reset();
+    } catch (err) {
+      console.error("Failed to add flashcard:", err);
+    }
+  });
 }
 // =====================
 // Init
 // =====================
+// TODO: How can I run all of these in a loop? 
+// right now after adding  a flashcard the whole dynamics get lost and the number of flashcards etc just go away.  
 document.addEventListener("DOMContentLoaded", async () => {
   if (!authToken) {
     window.location.href = "login.html";
@@ -113,6 +152,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     await startReview();
     await backToDecks();
     await addFlashcardModal();
+    await closeModal();
+    await addNewCard();
   } catch (err) {
     console.error(err);
   }

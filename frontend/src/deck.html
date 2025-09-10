@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <title>Deck Overview</title>
+    <link rel="stylesheet" href="deck.css" />
 </head>
 <body>
     <!-- So we want to show the name of the deck as h1, then total number of flashcards (next to it a button to scroll through a list of flashcards, then in some color the number of due flashcards) -->
@@ -13,8 +14,8 @@
     <button type="button" id="back-to-dashboard"> Back to Decks</button>
     <!-- and then we also need to a button like 'start review' and 'back to Decks Dashboard' -->
     <button type="button" id="add-flashcard"> Add New Flashcard</button> <!-- SO upon clicking this the following should appear-->
-    <div id="flashcard-modal" class="modal hidden">
-        <div class="modal content"> 
+    <div id="flashcard-modal" class="modal">
+        <div class= "modal-content"> 
             <h2> Add Flashcard</h2>
             <form id="add-flashcard-form"> 
                 <input type="text" id="front" placeholder="Front" required/> 

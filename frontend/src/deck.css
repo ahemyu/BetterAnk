@@ -1,8 +1,18 @@
 .modal {
-    /* some stuff needs to go here I guesss */
-    display: block;
+  display: none; /* hidden by default */
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5); 
+  justify-content: center;
+  align-items: center;
 }
 
-.modal.hidden {
-  display: none;
+.modal-content {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.modal.show {
+  display: flex; 
 }
