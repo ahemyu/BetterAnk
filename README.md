@@ -13,10 +13,16 @@ first cd into backend/app and then run:
 python -r requirements.txt
 ```
 
-then start the postgres server locally (will be moved to cloud soon inshallah)
-
-then start the FastAPI backend with python main.py 
-Then you can create and get decks, flashcards, reviews via the api    
+then run
+```bash
+docker compose up
+```
+to start the local postgres database.
+then start the FastAPI backend with 
+```bash
+python main.py 
+```
+Then you can create and get users, decks, flashcards, reviews via the api    
 The review system is based on the sm2 implementation of [alankan886/SuperMemo2](https://github.com/alankan886/SuperMemo2)
 ### frontend
 I want to try to use vanilla js for the frontend to actually learn some web concepts deeply. 
