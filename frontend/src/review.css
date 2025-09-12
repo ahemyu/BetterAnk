@@ -1,0 +1,6 @@
+.back {
+    display: none;
+}
+.back-shown{
+    display: block;
+}

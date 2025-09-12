@@ -56,9 +56,11 @@ async function getNumberOfFlashcards() {
 }
 
 async function startReview(){
-  //this just needs to link to review page basically which should display all due flashcards one after the other
+  const queryString = window.location.search; 
+  const params = new URLSearchParams(queryString);
+  const deckId = params.get("deckId");
   document.getElementById("review-button").addEventListener("click", () => {
-    window.location.href = "review.html"; //TODO: Adjust this ya salame
+    window.location.href = `review.html?deckId=${deckId}`;
   });
 }
 
@@ -68,7 +70,6 @@ async function backToDecks(){
   });
 }
 
-//TODO: add function that creates form to allow for users to create new flashcards for the current deck 
 
 async function addFlashcardModal(){
   // clicking on button 'add-flashcard' removes 'hidden' class of 'flashcard-modal' to make it visible 
@@ -138,8 +139,7 @@ async function addNewCard() {
 // =====================
 // Init
 // =====================
-// TODO: How can I run all of these in a loop? 
-// right now after adding  a flashcard the whole dynamics get lost and the number of flashcards etc just go away.  
+
 document.addEventListener("DOMContentLoaded", async () => {
   if (!authToken) {
     window.location.href = "login.html";
@@ -149,7 +149,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await getNumberOfFlashcards();
     await startReview();
     await backToDecks();
-    await addCreateDeckModal();
+    await addFlashcardModal();
     await closeModal();
     await addNewCard();
   } catch (err) {
