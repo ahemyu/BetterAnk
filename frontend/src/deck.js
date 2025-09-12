@@ -128,8 +128,6 @@ async function addNewCard() {
       await apiPost("/flashcards", body);
       // After successful save:
       await getNumberOfFlashcards(); // refresh flashcard count
-      // hide modal
-      document.getElementById("flashcard-modal").classList.remove("show");
       // reset form fields
       form.reset();
     } catch (err) {
@@ -151,7 +149,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await getNumberOfFlashcards();
     await startReview();
     await backToDecks();
-    await addFlashcardModal();
+    await addCreateDeckModal();
     await closeModal();
     await addNewCard();
   } catch (err) {

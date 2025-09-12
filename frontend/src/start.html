@@ -3,14 +3,22 @@
 <head>
     <meta charset="UTF-8" />
     <title>Dashboard</title>
+    <link rel="stylesheet" href="modal.css"/>
 </head>
 <body>
     <h1 id="welcome-message"> Loading...</h1>
-    <form id="create-deck-form"> 
-        <input type="text" id="deck-name"/>
-        <input type="text" id="deck-description"/>
-        <button type="submit"> Create Deck</button>
-    </form>
+    <button type="button" id="create-deck"> Create new Deck</button> 
+    <div id="create-deck-modal" class="modal">
+        <div class= "modal-content"> 
+            <h2> Create Deck </h2>
+            <form id="create-deck-form"> 
+                <input type="text" id="deck-name"/>
+                <input type="text" id="deck-description"/>
+                <button type="submit"> Create Deck</button>
+                <button type="button" id="create-deck-cancel"> Cancel</button> 
+            </form>
+        </div>
+    </div>
     <div id="decks-container">
         <ul id="decks-list">
         </ul>
