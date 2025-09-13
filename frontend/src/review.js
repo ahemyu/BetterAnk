@@ -28,7 +28,7 @@ async function apiPost(path, body) {
 // =====================
 
 async function getDueFlashcards(deckId){
-    const dueFlashcards = await apiGet(`/decks/${deckId}/flashcards`);
+    const dueFlashcards = await apiGet(`/decks/${deckId}/flashcards?due=true`);
     dueFlashcards.sort((a,b) => new Date(a.next_review_at) - new Date(b.next_review_at));
 
     return dueFlashcards;
@@ -43,10 +43,16 @@ async function showAndHideBack(){
     });
 }
 
+
 async function fillFrontAndBack(){
     const frontP = document.getElementById("front-p");
     const backP = document.getElementById("back-p");
-    
+    const noCardsLeft = await showReviewFinishedMessage();
+    if(noCardsLeft == true){
+        // we have to nullify the front and back and also not show the show answer button
+        document.getElementById("show-review").style.display = "none";
+        return;
+    }
     // use the global currentIndex to determione which flahcrad we are looking at 
     const currentFlashcard = reviewQueue[currentIndex];
     frontP.textContent = currentFlashcard.front;
@@ -61,25 +67,46 @@ async function sendFeedback(){
     const currentFlashcard = reviewQueue[currentIndex];
 
     badFeedbackButton.addEventListener("click", async () => {
-        await apiPost(`/flashcards/${currentFlashcard.id}/review`, {"feedback": "bad"});
         currentIndex++;
+        await fillFrontAndBack();
+        await apiPost(`/flashcards/${currentFlashcard.id}/review`, {"feedback": "bad"});
     });
    midFeedbackButton.addEventListener("click", async () => {
-        await apiPost(`/flashcards/${currentFlashcard.id}/review`, {"feedback": "mid"});
         currentIndex++;
+        await fillFrontAndBack();
+        await apiPost(`/flashcards/${currentFlashcard.id}/review`, {"feedback": "mid"});
     });
     goodFeedbackButton.addEventListener("click", async () => {
-        await apiPost(`/flashcards/${currentFlashcard.id}/review`, {"feedback": "good"});
         currentIndex++;
+        await fillFrontAndBack();
+        await apiPost(`/flashcards/${currentFlashcard.id}/review`, {"feedback": "good"});
+
     });
 
 }   
+async function showReviewFinishedMessage(){
+    // if currentIndex is one smaller than length of rewviewQue, just display a message like "Congrats, finsihed review for this deck, next review due at ...."
+    if(currentIndex >= reviewQueue.length){
+        document.getElementById("reviewFinished").classList.add("show");
+        return true;
+    }
+    document.getElementById("reviewFinished").classList.remove("show");
+    return false;
+}
 
+async function backToStartButton(){
+    const backToStart = document.getElementById("back-to-start");
+    backToStart.addEventListener("click", () => {
+        window.location.href = "start.html";
+    })
+}
 // =====================
 // Init
 // =====================
 // =====================
-
+console.log("HEREEEEEEEEEEEEE");
+// document.getElementById("show-review").style.display = "block";
+// document.getElementById("reviewFinished").classList.remove("show"); //Do not show the review finished message
 let reviewQueue = [];
 let currentIndex = 0;
 document.addEventListener("DOMContentLoaded", async () => {
@@ -88,14 +115,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
   try {
+
     const queryString = window.location.search; 
     const params = new URLSearchParams(queryString);
     const deckId = params.get("deckId");
     await showAndHideBack();
     reviewQueue =  await getDueFlashcards(deckId);
+    console.log(reviewQueue);
+    await showReviewFinishedMessage(); //check if there are any cards to review
     await fillFrontAndBack();
-    await sendFeedback()
-    // TODO need to call the function that willl populate front and back accordingly based on current flashcard 
+    await sendFeedback();
+    await backToStartButton();
   } catch (err) {
     console.error(err);
   }

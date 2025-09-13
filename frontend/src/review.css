@@ -4,3 +4,11 @@
 .show{
     display: block;
 }
+
+.reviewFinished {
+    display: none;
+}
+
+.reviewFinished.show {
+  display: block;
+}

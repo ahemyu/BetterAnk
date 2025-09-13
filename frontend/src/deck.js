@@ -14,7 +14,6 @@ async function apiGet(path) {
 }
 
 async function apiPost(path, body) {
-  console.log("I WAS CALLED");
   const res = await fetch(path, {
     method: "POST",
     headers,
