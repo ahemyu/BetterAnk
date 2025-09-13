@@ -80,7 +80,6 @@ async function handleCreateDeck(event) {
 }
 
 async function addCreateDeckModal(){
-  console.log("WE ARE HERE!!! ")
   const createDeckModalButton = document.getElementById("create-deck");
   const createDeckModal = document.getElementById("create-deck-modal");
   // add eventlistener for event click, 
