@@ -50,12 +50,14 @@ async function fillFrontAndBack(){
     const frontP = document.getElementById("front-p");
     const backP = document.getElementById("back-p");
     const noCardsLeft = await showReviewFinishedMessage();
+    const backDiv = document.getElementById("back");
     if(noCardsLeft == true){
         // we have to nullify the front and back and also not show the show answer button
         document.getElementById("show-review").style.display = "none";
         return;
     }
-    // use the global currentIndex to determione which flahcrad we are looking at
+    // use the global currentIndex to determine which flashcard we are looking at
+    backDiv.classList.remove("show"); // hide the back again
     const currentFlashcard = reviewQueue[currentIndex];
     frontP.textContent = currentFlashcard.front;
     backP.textContent = currentFlashcard.back;
