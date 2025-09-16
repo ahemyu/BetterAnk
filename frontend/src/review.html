@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <title>Review</title>
     <link rel="stylesheet" href="review.css">
+    <link rel="stylesheet" href="modal.css">
 </head>
 <body>
     <!-- We need the front -->
@@ -26,9 +27,28 @@
                 <button type="button" id="good"> good </button>     
                 <button type="button" id="mid"> mid </button>     
                 <button type="button" id="bad"> bad </button>     
+            </div>
+            <div id="card-actions">
+                <button type="button" id="edit-card">Edit</button>
+                <button type="button" id="delete-card">Delete</button>
             </div>         
         </div>
     </div>
+
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Edit Flashcard</h2>
+            <form id="edit-form">
+                <label for="edit-front">Front:</label>
+                <textarea id="edit-front" name="edit-front" required></textarea>
+                <label for="edit-back">Back:</label>
+                <textarea id="edit-back" name="edit-back" required></textarea>
+                <button type="submit">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
     <!-- 3 buttons for feedback -->
      <script src="review.js"></script>
 </body>

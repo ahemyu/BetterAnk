@@ -24,6 +24,25 @@ async function apiPost(path, body) {
   return res.json();
 }
 
+async function apiPut(path, body) {
+  const res = await fetch(path, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PUT ${path} failed`);
+  return res.json();
+}
+
+async function apiDelete(path) {
+  const res = await fetch(path, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok) throw new Error(`DELETE ${path} failed`);
+  return res.json();
+}
+
 // =====================
 // Page Logic
 // =====================
@@ -89,6 +108,50 @@ async function sendFeedback(){
     });
 
 }   
+
+async function cardActions() {
+    const editButton = document.getElementById("edit-card");
+    const deleteButton = document.getElementById("delete-card");
+    const modal = document.getElementById("edit-modal");
+    const closeButton = document.querySelector(".close-button");
+    const editForm = document.getElementById("edit-form");
+    const editFront = document.getElementById("edit-front");
+    const editBack = document.getElementById("edit-back");
+
+    editButton.addEventListener("click", () => {
+        const currentFlashcard = reviewQueue[currentIndex];
+        editFront.value = currentFlashcard.front;
+        editBack.value = currentFlashcard.back;
+        modal.style.display = "block";
+    });
+
+    deleteButton.addEventListener("click", async () => {
+        const currentFlashcard = reviewQueue[currentIndex];
+        if (confirm("Are you sure you want to delete this card?")) {
+            await apiDelete(`/flashcards/${currentFlashcard.id}`);
+            reviewQueue.splice(currentIndex, 1);
+            await fillFrontAndBack();
+        }
+    });
+
+    closeButton.addEventListener("click", () => {
+        modal.style.display = "none";
+    });
+
+    editForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const currentFlashcard = reviewQueue[currentIndex];
+        const updatedFlashcard = {
+            front: editFront.value,
+            back: editBack.value,
+        };
+        const newFlashcard = await apiPut(`/flashcards/${currentFlashcard.id}`, updatedFlashcard);
+        reviewQueue[currentIndex] = newFlashcard;
+        await fillFrontAndBack();
+        modal.style.display = "none";
+    });
+}
+
 async function showReviewFinishedMessage(){
     // if currentIndex is one smaller than length of rewviewQue, just display a message like "Congrats, finsihed review for this deck, next review due at ...."
     if(currentIndex >= reviewQueue.length){
@@ -156,10 +219,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     await fillFrontAndBack();
     await sendFeedback();
     await backToStartButton();
+    await cardActions();
   } catch (err) {
     console.error(err);
   }
 });
-
-//TODO change Rewview finished message to show the next due card as well 
-//TODO add buttons to edit and delete flashcards (while they are shown)
