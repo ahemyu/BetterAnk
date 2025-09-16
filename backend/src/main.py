@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List
 from spaced_repetition import SM2Algo
-from models import DBDeck, Deck, Flashcard, DBFlashcard, Message, Review, DBReview, UpdateDeck, UserResponse, UserCreate, DBUser, ReviewCreate
+from models import DBDeck, Deck, Flashcard, DBFlashcard, Message, Review, DBReview, UpdateDeck, UserResponse, UserCreate, DBUser, ReviewCreate, UpdateFlashcard
 from database import get_db
 from datetime import datetime
 from utils import hash_password, verify_password
@@ -160,6 +160,34 @@ def get_flashcard(
     ).first()
     if db_flashcard is None:
         raise HTTPException(status_code=404, detail="Flashcard not found")
+    return db_flashcard
+
+@app.put("/flashcards/{flashcard_id}", response_model=Flashcard)
+def update_flashcard(
+    flashcard_id: int,
+    flashcard: UpdateFlashcard,
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update a specific flashcard.
+    """
+    db_flashcard = db.query(DBFlashcard).filter(
+        DBFlashcard.id == flashcard_id,
+        DBFlashcard.user_id == current_user.id
+    ).first()
+    if db_flashcard is None:
+        raise HTTPException(status_code=404, detail="Flashcard not found")
+
+    # Update the flashcard's properties
+    if flashcard.front:
+        db_flashcard.front = flashcard.front
+    if flashcard.back:
+        db_flashcard.back = flashcard.back
+
+    db.commit()
+    db.refresh(db_flashcard)
+
     return db_flashcard
 
 @app.delete("/flashcards/{flashcard_id}", response_model=Message)

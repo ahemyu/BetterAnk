@@ -99,6 +99,11 @@ class UpdateDeck(BaseModel):
     name: str | None = None
     description: str | None = None
 
+class UpdateFlashcard(BaseModel):
+    """Update the front and/or back of a flashcard."""
+    front: str | None = None
+    back: str | None = None
+
 class Review(BaseModel):
     """Represents a review of a flashcard."""
     model_config = ConfigDict(from_attributes=True) # to allow conversion from SQLAlchemy model
