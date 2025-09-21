@@ -62,6 +62,15 @@ async function showAndHideBack(){
         await stopTimer();
         backDiv.classList.add("show");
     });
+    document.addEventListener("keydown", async (e) => {
+    if (e.key === "Enter") {
+        const backDiv = document.getElementById("back");
+        if (!backDiv.classList.contains("show")) {
+            await stopTimer();
+            backDiv.classList.add("show");
+        }
+    }
+});
 }
 
 

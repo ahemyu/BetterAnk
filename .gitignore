@@ -13,3 +13,4 @@ spiku.jpg
 __pycache__
 .pytest_cache
 .*
+.pgdata/
