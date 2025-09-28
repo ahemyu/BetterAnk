@@ -3,14 +3,21 @@
 <head>
     <meta charset="UTF-8" />
     <title>Login Page</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
 </head>
-<body>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
 
-    <form id="login-form">
-        <input type="text" placeholder="Enter username" id="username" name="username"/>
-        <input type="password" placeholder="Type in your password" id="password" name="password"/>
-        <button type="submit"> Login</button>
-    </form>
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
+        <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
+        <form id="login-form" class="space-y-4">
+            <input type="text" placeholder="Enter username" id="username" name="username" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            <input type="password" placeholder="Type in your password" id="password" name="password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            <button type="submit" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Login</button>
+        </form>
+        <p class="text-center text-sm text-gray-600 mt-4">
+            Don't have an account? <a href="register.html" class="text-blue-500 hover:underline">Register here</a>
+        </p>
+    </div>
 
     <script src="login.js"></script>
 

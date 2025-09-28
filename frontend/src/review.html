@@ -3,53 +3,71 @@
 <head>
     <meta charset="UTF-8" />
     <title>Review</title>
-    <link rel="stylesheet" href="review.css">
-    <link rel="stylesheet" href="modal.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+    <style>
+        .back {
+            display: none;
+        }
+        .show {
+            display: block;
+        }
+        .reviewFinished {
+            display: none;
+        }
+        .reviewFinished.show {
+            display: block;
+        }
+    </style>
 </head>
-<body>
-    <!-- We need the front -->
-    <!-- We need the back which is hidden by default and will only be shown once the show button or enter is clicked -->
-     <div id="reviewFinished" class="reviewFinished">
-        <p> Congrats, you finished the review for this Deck!</p>
-        <button type="button" id="back-to-start">Back to Start Menu</button>
-     </div>
-     <div id="show-review">
-        <div id="front"> 
-            <p id="front-p">Front </p>
-            <div id="timer">0s</div>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div id="reviewFinished" class="reviewFinished text-center">
+        <p class="text-2xl font-bold mb-4">Congrats, you finished the review for this Deck!</p>
+        <button type="button" id="back-to-start" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Back to Start Menu</button>
+    </div>
+
+    <div id="show-review" class="w-full max-w-lg">
+        <div id="front" class="bg-white p-8 rounded-lg shadow-md text-center">
+            <p id="front-p" class="text-3xl">Front</p>
+            <div id="timer" class="text-sm text-gray-500 mt-2">0s</div>
             <br>
-            <button type="button" id="show-answer">Show Answer</button>
+            <button type="button" id="show-answer" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Show Answer</button>
         </div>
         <br>
-        <div id="back" class="back"> 
-            <p id="back-p"> Back</p>
-            <div id="feedback-buttons">
-                <button type="button" id="good"> good </button>     
-                <button type="button" id="mid"> mid </button>     
-                <button type="button" id="bad"> bad </button>     
+        <div id="back" class="back bg-white p-8 rounded-lg shadow-md text-center">
+            <p id="back-p" class="text-3xl">Back</p>
+            <div id="feedback-buttons" class="mt-4 space-x-2">
+                <button type="button" id="good" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Good</button>
+                <button type="button" id="mid" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">Mid</button>
+                <button type="button" id="bad" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Bad</button>
             </div>
-            <div id="card-actions">
-                <button type="button" id="edit-card">Edit</button>
-                <button type="button" id="delete-card">Delete</button>
-            </div>         
+            <div id="card-actions" class="mt-4 space-x-2">
+                <button type="button" id="edit-card" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded">Edit</button>
+                <button type="button" id="delete-card" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">Delete</button>
+            </div>
         </div>
     </div>
 
-    <div id="edit-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button">&times;</span>
-            <h2>Edit Flashcard</h2>
-            <form id="edit-form">
-                <label for="edit-front">Front:</label>
-                <textarea id="edit-front" name="edit-front" required></textarea>
-                <label for="edit-back">Back:</label>
-                <textarea id="edit-back" name="edit-back" required></textarea>
-                <button type="submit">Save Changes</button>
-            </form>
+    <div id="edit-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h2 class="text-lg leading-6 font-medium text-gray-900 text-center">Edit Flashcard</h2>
+                <form id="edit-form" class="mt-2 space-y-4">
+                    <div>
+                        <label for="edit-front" class="block text-sm font-medium text-gray-700">Front:</label>
+                        <textarea id="edit-front" name="edit-front" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                    <div>
+                        <label for="edit-back" class="block text-sm font-medium text-gray-700">Back:</label>
+                        <textarea id="edit-back" name="edit-back" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                    <div class="items-center gap-2">
+                        <button type="submit" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Save Changes</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
-    <!-- 3 buttons for feedback -->
-     <script src="review.js"></script>
+    <script src="review.js"></script>
 </body>
 </html>

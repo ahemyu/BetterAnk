@@ -87,7 +87,7 @@ async function addFlashcardModal(){
   const flashcardModalButton = document.getElementById("add-flashcard");
   const addFlashCardModal = document.getElementById("add-flashcard-modal");
   flashcardModalButton.addEventListener("click", () => {
-    addFlashCardModal.classList.add("show");
+    addFlashCardModal.classList.remove("hidden");
   });
 }
 
@@ -95,16 +95,16 @@ async function closeModal(){
   const addFlashCardModal = document.getElementById("add-flashcard-modal");
   const cancelButton = document.getElementById("add-flashcard-cancel");
   cancelButton.addEventListener("click", () => {
-    addFlashCardModal.classList.remove("show"); 
+    addFlashCardModal.classList.add("hidden"); 
   });
   addFlashCardModal.addEventListener("click", (event) => {
     if(event.target === addFlashCardModal){
-      addFlashCardModal.classList.remove("show");
+      addFlashCardModal.classList.add("hidden");
     }
   });
   document.addEventListener("keydown", (event) => {
-    if(event.key === "Escape" && addFlashCardModal.classList.contains("show")){
-      addFlashCardModal.classList.remove("show");
+    if(event.key === "Escape" && !addFlashCardModal.classList.contains("hidden")){
+      addFlashCardModal.classList.add("hidden");
     }
   })
 }
@@ -127,7 +127,7 @@ async function addNewCard() {
       form.reset();
       // also refresh the table view if it is open
       const showFlashcardsModal = document.getElementById("show-flashcards-modal");
-      if (showFlashcardsModal.classList.contains("show")) {
+      if (!showFlashcardsModal.classList.contains("hidden")) {
         await showAllFlashcards();
       }
     } catch (err) {
@@ -211,7 +211,7 @@ async function showAllFlashcardsModal() {
   const showFlashcardsModal = document.getElementById("show-flashcards-modal");
 
   showFlashcardsButton.addEventListener("click", async () => {
-    showFlashcardsModal.classList.add("show");
+    showFlashcardsModal.classList.remove("hidden");
     await showAllFlashcards();
   });
 }
@@ -221,18 +221,18 @@ async function closeShowAllFlashcardsModal() {
     const cancelButton = document.getElementById("show-flashcards-cancel");
 
     cancelButton.addEventListener("click", () => {
-        showFlashcardsModal.classList.remove("show");
+        showFlashcardsModal.classList.add("hidden");
     });
 
     showFlashcardsModal.addEventListener("click", (event) => {
         if (event.target === showFlashcardsModal) {
-            showFlashcardsModal.classList.remove("show");
+            showFlashcardsModal.classList.add("hidden");
         }
     });
 
     document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && showFlashcardsModal.classList.contains("show")) {
-            showFlashcardsModal.classList.remove("show");
+        if (event.key === "Escape" && !showFlashcardsModal.classList.contains("hidden")) {
+            showFlashcardsModal.classList.add("hidden");
         }
     });
 }
