@@ -1,4 +1,4 @@
-  // =====================
+// =====================
 // API Helpers
 // =====================
 const authToken = localStorage.getItem("authToken");
@@ -23,6 +23,25 @@ async function apiPost(path, body) {
   return res.json();
 }
 
+async function apiPut(path, body) {
+  const res = await fetch(path, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PUT ${path} failed`);
+  return res.json();
+}
+
+async function apiDelete(path) {
+  const res = await fetch(path, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok) throw new Error(`DELETE ${path} failed`);
+  return res.json();
+}
+
 // =====================
 // Page Logic
 // =====================
@@ -33,21 +52,16 @@ async function displayDeckName(deckId){
   document.getElementById("deck-name").textContent = `${deckName}`
 }
 
-// So we need to get all of the flashcards of the current deck, total and due (we need to do two calls to the backend)
-// for that we need to know which deck we are in right now (identified by the deckid=n query parameter of the current url)
 async function getNumberOfFlashcards() {
     const queryString = window.location.search; 
     const params = new URLSearchParams(queryString);
     if (params.has("deckId")){
         const deckId = params.get("deckId");
         displayDeckName(deckId);
-        // Now we have the deck ID and can just do the calls to the backenmd
-        // first get all flashcards 
         const allFlashcards = await apiGet(`/decks/${deckId}/flashcards`);
         const numberofAllFlashcards = allFlashcards.length;
         document.getElementById("all-flashcards").textContent = `${numberofAllFlashcards} total cards`
         
-        // then due flashcards
         const dueFlashcards = await apiGet(`/decks/${deckId}/flashcards?due=true`);
         const numberOfDueFlashcards = dueFlashcards.length;
         document.getElementById("due-flashcards").textContent = `${numberOfDueFlashcards} due cards`
@@ -69,31 +83,25 @@ async function backToDecks(){
   });
 }
 
-
 async function addFlashcardModal(){
-  // clicking on button 'add-flashcard' removes 'hidden' class of 'flashcard-modal' to make it visible 
   const flashcardModalButton = document.getElementById("add-flashcard");
-  const addFlashCardModal = document.getElementById("flashcard-modal");
-  // add eventlistener for event click, 
+  const addFlashCardModal = document.getElementById("add-flashcard-modal");
   flashcardModalButton.addEventListener("click", () => {
-    // remove hidden class 
     addFlashCardModal.classList.add("show");
   });
-
 }
+
 async function closeModal(){
-  const addFlashCardModal = document.getElementById("flashcard-modal");
+  const addFlashCardModal = document.getElementById("add-flashcard-modal");
   const cancelButton = document.getElementById("add-flashcard-cancel");
   cancelButton.addEventListener("click", () => {
     addFlashCardModal.classList.remove("show"); 
   });
-  // now if we click outside of the modal ,we wanna hide modal as well
   addFlashCardModal.addEventListener("click", (event) => {
     if(event.target === addFlashCardModal){
       addFlashCardModal.classList.remove("show");
     }
   });
-  // if we press 'esc' key we also want to close the modal 
   document.addEventListener("keydown", (event) => {
     if(event.key === "Escape" && addFlashCardModal.classList.contains("show")){
       addFlashCardModal.classList.remove("show");
@@ -103,38 +111,132 @@ async function closeModal(){
 
 async function addNewCard() {
   const form = document.getElementById("add-flashcard-form");
-
   form.addEventListener("submit", async (event) => {
-    event.preventDefault(); // stop form from refreshing the page
-
+    event.preventDefault();
     const front = document.getElementById("front").value;
     const back = document.getElementById("back").value;
-
     const params = new URLSearchParams(window.location.search);
     let deckId = null;
     if (params.has("deckId")) {
       deckId = parseInt(params.get("deckId"));
     }
-
-    const body = {
-      front,
-      back,
-      deck_id: deckId,
-    };
-
-    console.log("Posting flashcard:", body);
-
+    const body = { front, back, deck_id: deckId };
     try {
       await apiPost("/flashcards", body);
-      // After successful save:
-      await getNumberOfFlashcards(); // refresh flashcard count
-      // reset form fields
+      await getNumberOfFlashcards();
       form.reset();
+      // also refresh the table view if it is open
+      const showFlashcardsModal = document.getElementById("show-flashcards-modal");
+      if (showFlashcardsModal.classList.contains("show")) {
+        await showAllFlashcards();
+      }
     } catch (err) {
       console.error("Failed to add flashcard:", err);
     }
   });
 }
+
+async function showAllFlashcards() {
+  const params = new URLSearchParams(window.location.search);
+  const deckId = params.get("deckId");
+  const flashcards = await apiGet(`/decks/${deckId}/flashcards`);
+  const tbody = document.getElementById("flashcards-tbody");
+  const rowTemplate = document.getElementById("flashcard-row-template");
+  
+  tbody.innerHTML = ""; // Clear existing rows
+
+  for (const card of flashcards) {
+    const row = rowTemplate.content.cloneNode(true);
+    const tr = row.querySelector("tr");
+    tr.dataset.flashcardId = card.id;
+    row.querySelector(".front").textContent = card.front;
+    row.querySelector(".back").textContent = card.back;
+    row.querySelector(".next-review").textContent = new Date(card.next_review_at).toLocaleDateString();
+    tbody.appendChild(row);
+  }
+
+  // Add event listeners for delete and edit buttons
+  tbody.querySelectorAll(".delete-btn").forEach(button => {
+    button.addEventListener("click", async (event) => {
+      const row = event.target.closest("tr");
+      const flashcardId = row.dataset.flashcardId;
+      try {
+        await apiDelete(`/flashcards/${flashcardId}`);
+        await getNumberOfFlashcards();
+        await showAllFlashcards(); // Refresh the table
+      } catch (err) {
+        console.error("Failed to delete flashcard:", err);
+      }
+    });
+  });
+
+  tbody.querySelectorAll(".edit-btn").forEach(button => {
+    button.addEventListener("click", (event) => {
+      const row = event.target.closest("tr");
+      const flashcardId = row.dataset.flashcardId;
+      const front = row.querySelector(".front").textContent;
+      const back = row.querySelector(".back").textContent;
+      const nextReview = row.querySelector(".next-review").textContent;
+
+      const editTemplate = document.getElementById("edit-flashcard-row-template");
+      const editRowFragment = editTemplate.content.cloneNode(true);
+      const editRow = editRowFragment.querySelector('tr');
+      
+      editRow.querySelector(".front-input").value = front;
+      editRow.querySelector(".back-input").value = back;
+      editRow.querySelector(".next-review").textContent = nextReview;
+      
+      row.replaceWith(editRow);
+
+      editRow.querySelector(".save-btn").addEventListener("click", async () => {
+        const newFront = editRow.querySelector(".front-input").value;
+        const newBack = editRow.querySelector(".back-input").value;
+        try {
+          await apiPut(`/flashcards/${flashcardId}`, { front: newFront, back: newBack });
+          await showAllFlashcards(); // Refresh the table
+        } catch (err) {
+          console.error("Failed to update flashcard:", err);
+        }
+      });
+
+      editRow.querySelector(".cancel-edit-btn").addEventListener("click", () => {
+        showAllFlashcards(); // Just refresh the table to cancel
+      });
+    });
+  });
+}
+
+async function showAllFlashcardsModal() {
+  const showFlashcardsButton = document.getElementById("show-flashcards");
+  const showFlashcardsModal = document.getElementById("show-flashcards-modal");
+
+  showFlashcardsButton.addEventListener("click", async () => {
+    showFlashcardsModal.classList.add("show");
+    await showAllFlashcards();
+  });
+}
+
+async function closeShowAllFlashcardsModal() {
+    const showFlashcardsModal = document.getElementById("show-flashcards-modal");
+    const cancelButton = document.getElementById("show-flashcards-cancel");
+
+    cancelButton.addEventListener("click", () => {
+        showFlashcardsModal.classList.remove("show");
+    });
+
+    showFlashcardsModal.addEventListener("click", (event) => {
+        if (event.target === showFlashcardsModal) {
+            showFlashcardsModal.classList.remove("show");
+        }
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && showFlashcardsModal.classList.contains("show")) {
+            showFlashcardsModal.classList.remove("show");
+        }
+    });
+}
+
 // =====================
 // Init
 // =====================
@@ -151,6 +253,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     await addFlashcardModal();
     await closeModal();
     await addNewCard();
+    await showAllFlashcardsModal();
+    await closeShowAllFlashcardsModal();
   } catch (err) {
     console.error(err);
   }

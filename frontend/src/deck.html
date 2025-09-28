@@ -14,8 +14,10 @@
     <button type="button" id="back-to-dashboard"> Back to Decks</button>
     <!-- and then we also need to a button like 'start review' and 'back to Decks Dashboard' -->
     <button type="button" id="add-flashcard"> Add New Flashcard</button> <!-- SO upon clicking this the following should appear-->
-    <div id="flashcard-modal" class="modal">
-        <div class= "modal-content"> 
+    <button type="button" id="show-flashcards">Show All Flashcards</button>
+    
+    <div id="add-flashcard-modal" class="modal">
+        <div class="modal-content"> 
             <h2> Add Flashcard</h2>
             <form id="add-flashcard-form"> 
                 <input type="text" id="front" placeholder="Front" required/> 
@@ -25,6 +27,52 @@
             </form>
         </div>    
     </div>
+
+    <div id="show-flashcards-modal" class="modal">
+        <div class="modal-content">
+            <h2>All Flashcards</h2>
+            <div id="flashcard-table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Front</th>
+                            <th>Back</th>
+                            <th>Next Review</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="flashcards-tbody">
+                    </tbody>
+                </table>
+            </div>
+            <button type="button" id="show-flashcards-cancel">Close</button>
+        </div>
+    </div>
+
+    <template id="flashcard-row-template">
+        <tr data-flashcard-id="">
+            <td class="front"></td>
+            <td class="back"></td>
+            <td class="next-review"></td>
+            <td>
+                <button class="edit-btn">Edit</button>
+                <button class="delete-btn">Delete</button>
+            </td>
+        </tr>
+    </template>
+    
+    <template id="edit-flashcard-row-template">
+        <tr>
+            <td><input type="text" class="front-input"></td>
+            <td><input type="text" class="back-input"></td>
+            <td class="next-review"></td>
+            <td>
+                <button class="save-btn">Save</button>
+                <button class="cancel-edit-btn">Cancel</button>
+            </td>
+        </tr>
+    </template>
+
     <script src="deck.js"></script>
 </body>
 </html>
