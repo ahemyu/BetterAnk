@@ -1,4 +1,4 @@
-from models import DBFlashcard, ReviewFeedback
+from src.models import DBFlashcard, ReviewFeedback
 from datetime import datetime, timedelta
 
 class SM2Algo: 
