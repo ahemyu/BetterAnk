@@ -61,6 +61,7 @@ async function showAndHideBack(){
     showAnswerButton.addEventListener("click", async () => {
         await stopTimer();
         backDiv.classList.add("show");
+        showAnswerButton.style.display = "none";
     });
     document.addEventListener("keydown", async (e) => {
     if (e.key === "Enter") {
@@ -68,6 +69,7 @@ async function showAndHideBack(){
         if (!backDiv.classList.contains("show")) {
             await stopTimer();
             backDiv.classList.add("show");
+            showAnswerButton.style.display = "none";
         }
     }
 });
@@ -79,6 +81,7 @@ async function fillFrontAndBack(){
     const backP = document.getElementById("back-p");
     const noCardsLeft = await showReviewFinishedMessage();
     const backDiv = document.getElementById("back");
+    const showAnswerButton = document.getElementById("show-answer");
     if(noCardsLeft == true){
         // we have to nullify the front and back and also not show the show answer button
         document.getElementById("show-review").style.display = "none";
@@ -86,6 +89,7 @@ async function fillFrontAndBack(){
     }
     // use the global currentIndex to determine which flashcard we are looking at
     backDiv.classList.remove("show"); // hide the back again
+    showAnswerButton.style.display = "block";
     const currentFlashcard = reviewQueue[currentIndex];
     frontP.textContent = currentFlashcard.front;
     backP.textContent = currentFlashcard.back;
