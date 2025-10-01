@@ -148,3 +148,27 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class LLMGenerateRequest(BaseModel):
+    """Request body for LLM flashcard generation from text."""
+    text: str
+    num_cards: int = 2
+    deck_id: int | None = None
+    context: str | None = None
+
+class LLMGenerateFromImageRequest(BaseModel):
+    """Request body for LLM flashcard generation from image."""
+    image_base64: str  # Base64 encoded image
+    num_cards: int = 2
+    deck_id: int | None = None
+    additional_text: str | None = None
+
+class LLMGeneratedFlashcardResponse(BaseModel):
+    """Response for a single generated flashcard (not yet saved to DB)."""
+    front: str
+    back: str
+
+class LLMGenerateBatchResponse(BaseModel):
+    """Response containing a batch of generated flashcards."""
+    flashcards: list[LLMGeneratedFlashcardResponse]
+    message: str

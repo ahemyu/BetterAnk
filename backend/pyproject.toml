@@ -14,5 +14,7 @@ dependencies = [
     "python-jose[cryptography]==3.3.0",
     "python-multipart==0.0.9",
     "alembic==1.13.1",
-    "psycopg[binary]"
+    "psycopg[binary]",
+    "langchain>=0.3.0",
+    "langchain-google-genai>=2.0.0",
 ]
