@@ -3,9 +3,12 @@ LLM service for generating flashcards using Gemini API via LangChain.
 """
 import os
 import base64
+import logging
 from pydantic import BaseModel, Field
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
+
+logger = logging.getLogger(__name__)
 
 
 class GeneratedFlashcard(BaseModel):
@@ -32,8 +35,10 @@ class LLMService:
         if self.model is None and not self._initializing:
             self._initializing = True
             try:
+                logger.info("Initializing LLM service with Gemini API")
                 api_key = os.getenv("GOOGLE_API_KEY")
                 if not api_key:
+                    logger.error("GOOGLE_API_KEY environment variable is not set")
                     raise ValueError("GOOGLE_API_KEY environment variable is not set")
 
                 # Create model with structured output for flashcards
@@ -47,6 +52,7 @@ class LLMService:
                 )
 
                 self.model = base_model.with_structured_output(FlashcardBatch)
+                logger.info("LLM service initialized successfully")
 
             finally:
                 self._initializing = False
@@ -62,15 +68,19 @@ class LLMService:
         Returns:
             FlashcardBatch containing the generated flashcards
         """
+        logger.info(f"Generating {count} flashcards from {'text' if text else 'image'}")
         self._ensure_initialized()
 
         if text and image:
+            logger.error("Both text and image provided - only one is allowed")
             raise ValueError("Provide either text or image, not both")
         if not text and not image:
+            logger.error("Neither text nor image provided")
             raise ValueError("Provide either text or image input")
 
         if text:
             # Generate flashcards from text
+            logger.debug(f"Generating flashcards from text (length: {len(text)} characters)")
             prompt = f"""
                 Generate exactly {count} educational flashcards based on the following text.
                 Each flashcard should have a clear question on the front and a concise answer on the back.
@@ -81,6 +91,7 @@ class LLMService:
 
         else:
             # Generate flashcards from image
+            logger.debug(f"Generating flashcards from image (size: {len(image)} bytes)")
             image_b64 = base64.b64encode(image).decode()
 
             prompt = f"""
@@ -88,7 +99,7 @@ class LLMService:
             Each flashcard should have a clear question on the front and a concise answer on the back.
             Create {count} flashcards that test key concepts, information, or details visible in this image.
             """
-            
+
             message = HumanMessage(
                 content=[
                     {"type": "text", "text": prompt},
@@ -96,7 +107,9 @@ class LLMService:
                 ]
             )
 
+        logger.info("Invoking LLM model for flashcard generation")
         result = self.model.invoke([message])
+        logger.info(f"Successfully generated {len(result.flashcards)} flashcards")
         return result
 
 

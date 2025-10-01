@@ -1,6 +1,9 @@
+import logging
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 import os
+
+logger = logging.getLogger(__name__)
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not JWT_SECRET_KEY:
@@ -16,12 +19,16 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     else:
         expire = datetime.now() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=ALGORITHM)
+    token = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=ALGORITHM)
+    logger.debug(f"Created access token for subject: {data.get('sub')}")
+    return token
 
 def verify_access_token(token: str) -> dict | None:
     """Verify a JWT access token and return the payload."""
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[ALGORITHM])
+        logger.debug(f"Token verified successfully for subject: {payload.get('sub')}")
         return payload
-    except JWTError:
+    except JWTError as e:
+        logger.warning(f"Token verification failed: {str(e)}")
         return None
