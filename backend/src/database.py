@@ -1,10 +1,10 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 # PostgreSQL connection string
-# Format: postgresql://username:password@host:port/database_name
-SQLALCHEMY_DATABASE_URL = "postgresql://ahemyu:lol@localhost:5433/betterankdb"
+# Format: postgresql+psycopg://username:password@host:port/database_name
+# Using psycopg (psycopg3) driver
+SQLALCHEMY_DATABASE_URL = "postgresql+psycopg://ahemyu:lol@localhost:5433/betterankdb"
 
 # Create the SQLAlchemy engine
 engine = create_engine(SQLALCHEMY_DATABASE_URL)

@@ -2,7 +2,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SQLAlchemyEnum, Float
 from sqlalchemy.orm import relationship
-from database import Base
+from .database import Base
 from enum import Enum
 
 class Message(BaseModel):
