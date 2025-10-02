@@ -82,10 +82,10 @@ async function handleCreateDeck(event) {
 async function addCreateDeckModal(){
   const createDeckModalButton = document.getElementById("create-deck");
   const createDeckModal = document.getElementById("create-deck-modal");
-  // add eventlistener for event click, 
+  // add eventlistener for event click,
   createDeckModalButton.addEventListener("click", () => {
-    // remove hidden class 
-    createDeckModal.classList.add("show");
+    // remove hidden class
+    createDeckModal.classList.remove("hidden");
   });
 
 }
@@ -94,18 +94,18 @@ async function closeModal(){
   const createDeckModal = document.getElementById("create-deck-modal");
   const cancelButton = document.getElementById("create-deck-cancel");
   cancelButton.addEventListener("click", () => {
-    createDeckModal.classList.remove("show"); 
+    createDeckModal.classList.add("hidden");
   });
   // now if we click outside of the modal ,we wanna hide modal as well
   createDeckModal.addEventListener("click", (event) => {
     if(event.target === createDeckModal){
-      createDeckModal.classList.remove("show");
+      createDeckModal.classList.add("hidden");
     }
   });
-  // if we press 'esc' key we also want to close the modal 
+  // if we press 'esc' key we also want to close the modal
   document.addEventListener("keydown", (event) => {
-    if(event.key === "Escape" && createDeckModal.classList.contains("show")){
-      createDeckModal.classList.remove("show");
+    if(event.key === "Escape" && !createDeckModal.classList.contains("hidden")){
+      createDeckModal.classList.add("hidden");
     }
   })
 }
