@@ -55,7 +55,7 @@
                             <div id="text-gen-content" class="gen-content">
                                 <form id="llm-text-form" class="space-y-4">
                                     <textarea id="llm-text-input" placeholder="Enter text to generate flashcards from..." rows="6" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                                    <input type="number" id="text-num-cards" placeholder="Number of cards" value="5" min="1" max="20" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                                    <input type="number" id="text-num-cards" placeholder="Number of cards" value="1" min="1" max="5" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"/>
                                     <button type="submit" id="text-generate-btn" class="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Generate Flashcards</button>
                                     <button type="button" id="llm-cancel-1" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancel</button>
                                 </form>
@@ -68,7 +68,7 @@
                                     <div id="image-preview" class="hidden">
                                         <img id="preview-img" src="" alt="Preview" class="w-full max-h-48 object-contain border rounded"/>
                                     </div>
-                                    <input type="number" id="image-num-cards" placeholder="Number of cards" value="5" min="1" max="20" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                                    <input type="number" id="image-num-cards" placeholder="Number of cards" value="1" min="1" max="5" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"/>
                                     <button type="submit" id="image-generate-btn" class="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Generate Flashcards</button>
                                     <button type="button" id="llm-cancel-2" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancel</button>
                                 </form>

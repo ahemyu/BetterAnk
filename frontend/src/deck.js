@@ -19,7 +19,11 @@ async function apiPost(path, body) {
     headers,
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`POST ${path} failed`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const errorMessage = errorData.detail || `POST ${path} failed`;
+    throw new Error(errorMessage);
+  }
   return res.json();
 }
 
@@ -351,7 +355,7 @@ async function generateFromText() {
       displayGeneratedFlashcards();
     } catch (err) {
       console.error("Failed to generate flashcards from text:", err);
-      alert("Failed to generate flashcards. Please try again.");
+      alert(err.message || "Failed to generate flashcards. Please try again.");
     } finally {
       loadingSpinner.classList.add("hidden");
       generateBtn.disabled = false;
@@ -415,7 +419,7 @@ async function generateFromImage() {
       displayGeneratedFlashcards();
     } catch (err) {
       console.error("Failed to generate flashcards from image:", err);
-      alert("Failed to generate flashcards. Please try again.");
+      alert(err.message || "Failed to generate flashcards. Please try again.");
     } finally {
       loadingSpinner.classList.add("hidden");
       generateBtn.disabled = false;

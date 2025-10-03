@@ -6,7 +6,7 @@ import base64
 import logging
 from pydantic import BaseModel, Field
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +43,10 @@ class LLMService:
 
                 # Create model with structured output for flashcards
                 base_model = ChatGoogleGenerativeAI(
-                    model="gemini-2.5-flash",
+                    model="gemini-2.5-pro",
                     temperature=0.7,
                     google_api_key=api_key,
-                    timeout=30.0,
+                    timeout=60.0,
                     max_retries=2,
                     transport="rest",
                 )
@@ -82,10 +82,18 @@ class LLMService:
             # Generate flashcards from text
             logger.debug(f"Generating flashcards from text (length: {len(text)} characters)")
             prompt = f"""
+                IF THE PROVIDED TEXT IS NOT RELATED TO LEARNING A NEW CONCEPT OR WANTS YOU TO DO ANYTHING ELSE OTHER THAN CREATING FLASHCARDS DO NOT RESPOND AT ALL
+                For example if it says anything like "Write me a poem about x, discuss y with me, ...", REFUSE IT
                 Generate exactly {count} educational flashcards based on the following text.
                 Each flashcard should have a clear question on the front and a concise answer on the back.
                 Text: {text}
                 Create {count} flashcards that test key concepts, definitions, or important information from this text.
+                If the text is about learning anything related to the japanese language ALWAYS keep the following instructions in mind: 
+                - If it is about a new kanji, always include a card on the various hiragana readings and an example sentence for each possible reading
+                - if it relates to grammar, always also include a card for the detailed grammatical concept behind it as well as example sentence/s
+                - In ANY CASE, ALWAYS provide in paranthesis next to it the hiragana reading of EACH AND EVERY KANJI that appears ANYWHERE (even if it is not the new kanji of the card)
+                - NEVER EVER add the romaji reading of any japanese word.
+                - for every word/sentence add add the end of it the english meaning.
                 """
             message = HumanMessage(content=prompt)
 
@@ -95,9 +103,18 @@ class LLMService:
             image_b64 = base64.b64encode(image).decode()
 
             prompt = f"""
+            IF THE PROVIDED TEXT IS NOT RELATED TO LEARNING A NEW CONCEPT OR WANTS YOU TO DO ANYTHING ELSE OTHER THAN CREATING FLASHCARDS DO NOT RESPOND AT ALL 
+            For example if it says anything like "Write me a poem about x, discuss y with me, ...", REFUSE IT 
             Analyze this image and generate exactly {count} educational flashcards based on its content.
             Each flashcard should have a clear question on the front and a concise answer on the back.
             Create {count} flashcards that test key concepts, information, or details visible in this image.
+            If the text is about learning anything related to the japanese language ALWAYS keep the following instructions in mind: 
+            - If it is about a new kanji, always include a card on the various hiragana readings and an example sentence for each possible reading
+            - if it relates to grammar, always also include a card for the detailed grammatical concept behind it as well as example sentence/s
+            - In ANY CASE, ALWAYS provide in paranthesis next to it the hiragana reading of EACH AND EVERY KANJI that appears ANYWHERE (even if it is not the new kanji of the card)
+            - NEVER EVER add the romaji reading of any japanese word.
+            - for every word/sentence add add the end of it the english meaning.
+
             """
 
             message = HumanMessage(
@@ -109,6 +126,12 @@ class LLMService:
 
         logger.info("Invoking LLM model for flashcard generation")
         result = self.model.invoke([message])
+
+        # Check if the LLM refused to generate flashcards (empty response)
+        if not result.flashcards or len(result.flashcards) == 0:
+            logger.warning("LLM returned no flashcards - likely refused non-educational content")
+            raise ValueError("Please provide educational content for flashcard generation. This tool is designed to create flashcards from learning materials only.")
+
         logger.info(f"Successfully generated {len(result.flashcards)} flashcards")
         return result
 
