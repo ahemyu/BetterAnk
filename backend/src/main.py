@@ -1,16 +1,19 @@
 import sys
 import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import logging
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import time
+from routers import authentication, decks, flashcards, llm
 
 # Load environment variables from .env file
 load_dotenv()
 
 # This allows running the app with `python src/main.py`
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Configure logging
 logging.basicConfig(
@@ -20,10 +23,16 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
-from routers import authentication, decks, flashcards, llm
-
 app = FastAPI(title="BetterAnk API")
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:4173"],  # Vite dev and preview servers
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Request logging middleware
 @app.middleware("http")
@@ -46,8 +55,8 @@ app.include_router(decks.router)
 app.include_router(flashcards.router)
 app.include_router(llm.router)
 
-# we serve frontend as static files from the same server 
-frontend_path = os.path.join(os.path.dirname(__file__), "../../frontend/src")
+# we serve frontend as static files from the same server
+frontend_path = os.path.join(os.path.dirname(__file__), "../../frontend/build")
 app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 if __name__ == "__main__":

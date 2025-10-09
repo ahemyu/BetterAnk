@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -41,8 +41,8 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     return db_user
 
 @router.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    """Authenticate a user and return a JWT token."""
+def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """Authenticate a user and return a JWT token via HttpOnly cookie."""
     logger.info(f"Login attempt for username: {form_data.username}")
 
     db_user = db.query(DBUser).filter(DBUser.username == form_data.username).first()
@@ -51,8 +51,26 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     access_token = create_access_token(data={"sub": db_user.username})
+
+    # Set HttpOnly cookie
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,  # Set to True in production with HTTPS
+        samesite="lax",
+        max_age=30 * 24 * 60 * 60  # 30 days
+    )
+
     logger.info(f"User logged in successfully: {form_data.username} (ID: {db_user.id})")
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"message": "Login successful"}
+
+@router.post("/logout")
+def logout(response: Response):
+    """Logout user by clearing the HttpOnly cookie."""
+    logger.info("User logout requested")
+    response.delete_cookie(key="access_token")
+    return {"message": "Logout successful"}
 
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: DBUser = Depends(get_current_user)):
