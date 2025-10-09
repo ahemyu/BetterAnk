@@ -132,10 +132,40 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
+		// Ignore if user is typing in an input/textarea
+		const target = event.target as HTMLElement;
+		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+			if (event.key === 'Escape' && showEditModal) {
+				showEditModal = false;
+			}
+			return;
+		}
+
+		// Review flow keybindings
 		if (event.key === 'Enter' && !showBack && !isReviewFinished) {
 			handleShowAnswer();
 		} else if (event.key === 'Escape' && showEditModal) {
 			showEditModal = false;
+		} else if (showBack && !showEditModal) {
+			// Feedback keybindings
+			if (event.key === '1') {
+				handleFeedback('good');
+			} else if (event.key === '2') {
+				handleFeedback('mid');
+			} else if (event.key === '3') {
+				handleFeedback('bad');
+			} else if (event.key === 'e' || event.key === 'E') {
+				handleEdit();
+			} else if (event.key === 'd' || event.key === 'D') {
+				handleDelete();
+			}
+		}
+
+		// Navigation keybindings
+		if (event.key === 'z' || event.key === 'Z') {
+			if (!showEditModal) {
+				goto('/dashboard');
+			}
 		}
 	}
 
@@ -201,7 +231,7 @@
 				onclick={() => goto('/dashboard')}
 				class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
 			>
-				Back to Start Menu
+				Back to Start Menu <span class="text-xs opacity-75">(Z)</span>
 			</button>
 		</div>
 	{:else if currentFlashcard}
@@ -217,7 +247,7 @@
 						onclick={handleShowAnswer}
 						class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
 					>
-						Show Answer
+						Show Answer <span class="text-xs opacity-75">(Enter)</span>
 					</button>
 				{/if}
 			</div>
@@ -231,19 +261,19 @@
 							onclick={() => handleFeedback('good')}
 							class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
 						>
-							Good
+							Good <span class="text-xs opacity-75">(1)</span>
 						</button>
 						<button
 							onclick={() => handleFeedback('mid')}
 							class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded"
 						>
-							Mid
+							Mid <span class="text-xs opacity-75">(2)</span>
 						</button>
 						<button
 							onclick={() => handleFeedback('bad')}
 							class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
 						>
-							Bad
+							Bad <span class="text-xs opacity-75">(3)</span>
 						</button>
 					</div>
 					<div class="mt-4 space-x-2">
@@ -251,13 +281,13 @@
 							onclick={handleEdit}
 							class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded"
 						>
-							Edit
+							Edit <span class="text-xs opacity-75">(E)</span>
 						</button>
 						<button
 							onclick={handleDelete}
 							class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
 						>
-							Delete
+							Delete <span class="text-xs opacity-75">(D)</span>
 						</button>
 					</div>
 				</div>

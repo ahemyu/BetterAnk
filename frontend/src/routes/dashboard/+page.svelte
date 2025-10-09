@@ -95,8 +95,25 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
+		// Ignore if user is typing in an input/textarea
+		const target = event.target as HTMLElement;
+		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+			if (event.key === 'Escape' && showCreateModal) {
+				closeModal();
+			}
+			return;
+		}
+
+		// Modal keybindings
 		if (event.key === 'Escape' && showCreateModal) {
 			closeModal();
+		}
+
+		// Navigation keybindings (only when modal is not open)
+		if (!showCreateModal) {
+			if (event.key === 'c' || event.key === 'C') {
+				showCreateModal = true;
+			}
 		}
 	}
 
@@ -135,7 +152,7 @@
 			onclick={() => (showCreateModal = true)}
 			class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-4"
 		>
-			Create new Deck
+			Create new Deck <span class="text-xs opacity-75">(C)</span>
 		</button>
 
 

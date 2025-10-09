@@ -249,9 +249,33 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
+		// Ignore if user is typing in an input/textarea or select
+		const target = event.target as HTMLElement;
+		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+			if (event.key === 'Escape') {
+				if (showAddModal) closeAddModal();
+				if (showAllFlashcardsModal) showAllFlashcardsModal = false;
+			}
+			return;
+		}
+
+		// Modal keybindings
 		if (event.key === 'Escape') {
 			if (showAddModal) closeAddModal();
 			if (showAllFlashcardsModal) showAllFlashcardsModal = false;
+		}
+
+		// Navigation keybindings (only when no modal is open)
+		if (!showAddModal && !showAllFlashcardsModal) {
+			if (event.key === 'a' || event.key === 'A') {
+				showAddModal = true;
+			} else if (event.key === 'z' || event.key === 'Z') {
+				goto('/dashboard');
+			} else if (event.key === 'r' || event.key === 'R') {
+				goto(`/review/${deckId}`);
+			} else if (event.key === 's' || event.key === 'S') {
+				showAllFlashcardsModal = true;
+			}
 		}
 	}
 
@@ -298,25 +322,25 @@
 				onclick={() => goto(`/review/${deckId}`)}
 				class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
 			>
-				Start Review
+				Start Review <span class="text-xs opacity-75">(R)</span>
 			</button>
 			<button
 				onclick={() => goto('/dashboard')}
 				class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
 			>
-				Back to Decks
+				Back to Decks <span class="text-xs opacity-75">(Z)</span>
 			</button>
 			<button
 				onclick={() => (showAddModal = true)}
 				class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
 			>
-				Add New Flashcard
+				Add New Flashcard <span class="text-xs opacity-75">(A)</span>
 			</button>
 			<button
 				onclick={() => (showAllFlashcardsModal = true)}
 				class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
 			>
-				Show All Flashcards
+				Show All Flashcards <span class="text-xs opacity-75">(S)</span>
 			</button>
 		</div>
 	</div>
