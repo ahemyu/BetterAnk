@@ -4,6 +4,8 @@
 	import { goto } from '$app/navigation';
 	import { apiGet, apiPost, apiPut, apiDelete } from '$lib/api';
 	import { isAuthenticated } from '$lib/auth.svelte';
+	import { isEditableElement, isKey, isShiftKey, isEscape, isEnter } from '$lib/keyboard';
+	import KeyboardShortcutsHelp from '$lib/components/KeyboardShortcutsHelp.svelte';
 
 	interface Flashcard {
 		id: number;
@@ -26,6 +28,33 @@
 	let showEditModal = $state(false);
 	let editFront = $state('');
 	let editBack = $state('');
+
+	// Keyboard shortcuts help modal
+	let showKeyboardHelp = $state(false);
+	const keyboardShortcuts = [
+		{
+			title: 'Review Actions',
+			shortcuts: [
+				{ key: 'Enter', description: 'Show answer' },
+				{ key: '1', description: 'Mark as Good' },
+				{ key: '2', description: 'Mark as Mid' },
+				{ key: '3', description: 'Mark as Bad' },
+				{ key: 'E', description: 'Edit flashcard' },
+				{ key: 'Shift+D', description: 'Delete flashcard' }
+			]
+		},
+		{
+			title: 'Navigation',
+			shortcuts: [
+				{ key: 'Z', description: 'Back to dashboard' },
+				{ key: 'Esc', description: 'Close modal' }
+			]
+		},
+		{
+			title: 'Help',
+			shortcuts: [{ key: '?', description: 'Show keyboard shortcuts' }]
+		}
+	];
 
 	let currentFlashcard = $derived(reviewQueue[currentIndex]);
 
@@ -132,40 +161,53 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
-		// Ignore if user is typing in an input/textarea
-		const target = event.target as HTMLElement;
-		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-			if (event.key === 'Escape' && showEditModal) {
+		// Ignore if user is typing in an editable element
+		if (isEditableElement(event.target)) {
+			if (isEscape(event) && showEditModal) {
+				event.preventDefault();
 				showEditModal = false;
 			}
 			return;
 		}
 
 		// Review flow keybindings
-		if (event.key === 'Enter' && !showBack && !isReviewFinished) {
+		if (isEnter(event) && !showBack && !isReviewFinished) {
+			event.preventDefault();
 			handleShowAnswer();
-		} else if (event.key === 'Escape' && showEditModal) {
+		} else if (isEscape(event) && showEditModal) {
+			event.preventDefault();
 			showEditModal = false;
 		} else if (showBack && !showEditModal) {
 			// Feedback keybindings
 			if (event.key === '1') {
+				event.preventDefault();
 				handleFeedback('good');
 			} else if (event.key === '2') {
+				event.preventDefault();
 				handleFeedback('mid');
 			} else if (event.key === '3') {
+				event.preventDefault();
 				handleFeedback('bad');
-			} else if (event.key === 'e' || event.key === 'E') {
+			} else if (isKey(event, 'e')) {
+				event.preventDefault();
 				handleEdit();
-			} else if (event.key === 'd' || event.key === 'D') {
+			} else if (isShiftKey(event, 'd')) {
+				// Require Shift+D for delete (destructive action)
+				event.preventDefault();
 				handleDelete();
 			}
 		}
 
 		// Navigation keybindings
-		if (event.key === 'z' || event.key === 'Z') {
-			if (!showEditModal) {
-				goto('/dashboard');
-			}
+		if (isKey(event, 'z') && !showEditModal) {
+			event.preventDefault();
+			goto('/dashboard');
+		}
+
+		// Help modal
+		if (event.key === '?' && !showEditModal) {
+			event.preventDefault();
+			showKeyboardHelp = true;
 		}
 	}
 
@@ -287,7 +329,7 @@
 							onclick={handleDelete}
 							class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
 						>
-							Delete <span class="text-xs opacity-75">(D)</span>
+							Delete <span class="text-xs opacity-75">(Shift+D)</span>
 						</button>
 					</div>
 				</div>
@@ -341,3 +383,6 @@
 		</div>
 	</div>
 {/if}
+
+<!-- Keyboard Shortcuts Help -->
+<KeyboardShortcutsHelp bind:show={showKeyboardHelp} sections={keyboardShortcuts} />

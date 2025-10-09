@@ -4,6 +4,8 @@
 	import { goto } from '$app/navigation';
 	import { apiGet, apiPost, apiPut, apiDelete } from '$lib/api';
 	import { isAuthenticated } from '$lib/auth.svelte';
+	import { isEditableElement, isKey, isEscape } from '$lib/keyboard';
+	import KeyboardShortcutsHelp from '$lib/components/KeyboardShortcutsHelp.svelte';
 
 	interface Flashcard {
 		id: number;
@@ -49,6 +51,30 @@
 	let editingFlashcardId = $state<number | null>(null);
 	let editFront = $state('');
 	let editBack = $state('');
+
+	// Keyboard shortcuts help modal
+	let showKeyboardHelp = $state(false);
+	const keyboardShortcuts = [
+		{
+			title: 'Actions',
+			shortcuts: [
+				{ key: 'A', description: 'Add new flashcard' },
+				{ key: 'R', description: 'Start review' },
+				{ key: 'S', description: 'Show all flashcards' }
+			]
+		},
+		{
+			title: 'Navigation',
+			shortcuts: [
+				{ key: 'Z', description: 'Back to dashboard' },
+				{ key: 'Esc', description: 'Close modal' }
+			]
+		},
+		{
+			title: 'Help',
+			shortcuts: [{ key: '?', description: 'Show keyboard shortcuts' }]
+		}
+	];
 
 	async function loadDeck() {
 		try {
@@ -249,10 +275,10 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
-		// Ignore if user is typing in an input/textarea or select
-		const target = event.target as HTMLElement;
-		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
-			if (event.key === 'Escape') {
+		// Ignore if user is typing in an editable element
+		if (isEditableElement(event.target)) {
+			if (isEscape(event)) {
+				event.preventDefault();
 				if (showAddModal) closeAddModal();
 				if (showAllFlashcardsModal) showAllFlashcardsModal = false;
 			}
@@ -260,21 +286,29 @@
 		}
 
 		// Modal keybindings
-		if (event.key === 'Escape') {
+		if (isEscape(event)) {
+			event.preventDefault();
 			if (showAddModal) closeAddModal();
 			if (showAllFlashcardsModal) showAllFlashcardsModal = false;
 		}
 
 		// Navigation keybindings (only when no modal is open)
 		if (!showAddModal && !showAllFlashcardsModal) {
-			if (event.key === 'a' || event.key === 'A') {
+			if (isKey(event, 'a')) {
+				event.preventDefault();
 				showAddModal = true;
-			} else if (event.key === 'z' || event.key === 'Z') {
+			} else if (isKey(event, 'z')) {
+				event.preventDefault();
 				goto('/dashboard');
-			} else if (event.key === 'r' || event.key === 'R') {
+			} else if (isKey(event, 'r')) {
+				event.preventDefault();
 				goto(`/review/${deckId}`);
-			} else if (event.key === 's' || event.key === 'S') {
+			} else if (isKey(event, 's')) {
+				event.preventDefault();
 				showAllFlashcardsModal = true;
+			} else if (event.key === '?') {
+				event.preventDefault();
+				showKeyboardHelp = true;
 			}
 		}
 	}
@@ -767,3 +801,6 @@
 		</div>
 	</div>
 {/if}
+
+<!-- Keyboard Shortcuts Help -->
+<KeyboardShortcutsHelp bind:show={showKeyboardHelp} sections={keyboardShortcuts} />
