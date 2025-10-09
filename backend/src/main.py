@@ -46,8 +46,8 @@ app.include_router(decks.router)
 app.include_router(flashcards.router)
 app.include_router(llm.router)
 
-# we serve frontend as static files from the same server 
-frontend_path = os.path.join(os.path.dirname(__file__), "../../frontend/src")
+# we serve frontend as static files from the same server
+frontend_path = os.path.join(os.path.dirname(__file__), "../../frontend/build")
 app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 if __name__ == "__main__":

@@ -14,3 +14,4 @@ __pycache__
 .pytest_cache
 .*
 pgdata/
+frontend/svelte_docs.txt
