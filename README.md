@@ -24,9 +24,20 @@ python main.py
 ```
 Then you can create and get users, decks, flashcards, reviews via the api    
 The review system is based on the sm2 implementation of [alankan886/SuperMemo2](https://github.com/alankan886/SuperMemo2)
+
 ### frontend
 I want to try to use vanilla js for the frontend to actually learn some web concepts deeply. 
 This frontend ofc will call the FastAPI backend endpoints.
-I will serve the backend and static frontend file from the same FastAPI backend. 
+
+I wrote most of the vanilla js (still found in frontend/src_vanilla_backup/) myself but (as expected) it was very slow so I decided to let claude migrate all my code to svelte which it did. 
+
+So now the backend and frontend need to be started separately. 
+To start the frontend do
+
+```bash
+npm run dev 
+```
+and then open "localhost:5173" to register/login
+
 #### See you Space Cowboy ...
 ![spiku](https://github.com/user-attachments/assets/9089303e-fff8-43d7-ad22-2b01a56509a0)
