@@ -5,12 +5,34 @@ export default defineConfig({
 	plugins: [sveltekit()],
 	server: {
 		proxy: {
-			'/login': 'http://localhost:8080',
-			'/register': 'http://localhost:8080',
-			'/me': 'http://localhost:8080',
-			'/decks': 'http://localhost:8080',
-			'/flashcards': 'http://localhost:8080',
-			'/llm': 'http://localhost:8080'
+			'/login': {
+				target: process.env.VITE_API_URL || 'http://localhost:8080',
+				changeOrigin: true
+			},
+			'/logout': {
+				target: process.env.VITE_API_URL || 'http://localhost:8080',
+				changeOrigin: true
+			},
+			'/register': {
+				target: process.env.VITE_API_URL || 'http://localhost:8080',
+				changeOrigin: true
+			},
+			'/me': {
+				target: process.env.VITE_API_URL || 'http://localhost:8080',
+				changeOrigin: true
+			},
+			'/decks': {
+				target: process.env.VITE_API_URL || 'http://localhost:8080',
+				changeOrigin: true
+			},
+			'/flashcards': {
+				target: process.env.VITE_API_URL || 'http://localhost:8080',
+				changeOrigin: true
+			},
+			'/llm': {
+				target: process.env.VITE_API_URL || 'http://localhost:8080',
+				changeOrigin: true
+			}
 		}
 	}
 });

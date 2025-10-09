@@ -1,28 +1,25 @@
 // Auth state management using Svelte 5 runes
+// Token is stored in HttpOnly cookie by the backend
 
-let authTokenValue = $state<string | null>(
-	typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
-);
+let isAuthenticatedValue = $state<boolean>(false);
 
-export function setAuthToken(token: string | null): void {
-	authTokenValue = token;
-	if (typeof window !== 'undefined') {
-		if (token) {
-			localStorage.setItem('authToken', token);
-		} else {
-			localStorage.removeItem('authToken');
-		}
-	}
-}
-
-export function getAuthToken(): string | null {
-	return authTokenValue;
+export function setAuthenticated(authenticated: boolean): void {
+	isAuthenticatedValue = authenticated;
 }
 
 export function isAuthenticated(): boolean {
-	return authTokenValue !== null;
+	return isAuthenticatedValue;
 }
 
-export function logout(): void {
-	setAuthToken(null);
+export async function logout(): Promise<void> {
+	try {
+		await fetch('/logout', {
+			method: 'POST',
+			credentials: 'include'
+		});
+	} catch (err) {
+		console.error('Logout request failed:', err);
+	} finally {
+		setAuthenticated(false);
+	}
 }

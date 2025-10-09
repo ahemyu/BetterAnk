@@ -1,4 +1,4 @@
-# backend 
+# backend
 backend/venv
 backend/.env
 backend/app/__pycache__
@@ -9,9 +9,12 @@ Overview.txt
 notes.txt
 spiku.jpg
 
-# overall project 
+# overall project
 __pycache__
 .pytest_cache
 .*
 pgdata/
 frontend/svelte_docs.txt
+
+# frontend build directory
+frontend/build/

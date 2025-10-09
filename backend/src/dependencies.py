@@ -1,5 +1,5 @@
 import logging
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -9,10 +9,23 @@ from src.auth import verify_access_token
 
 logger = logging.getLogger(__name__)
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> DBUser:
-    """Get the current user from the JWT token."""
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> DBUser:
+    """Get the current user from the JWT token in HttpOnly cookie."""
+    # Try to get token from cookie first
+    token = request.cookies.get("access_token")
+
+    # Fallback to Authorization header for backward compatibility
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+
+    if not token:
+        logger.warning("Authentication failed: No token provided")
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
     payload = verify_access_token(token)
     if not payload:
         logger.warning("Authentication failed: Invalid or expired token")

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { login } from '$lib/api';
-	import { setAuthToken } from '$lib/auth.svelte';
+	import { setAuthenticated } from '$lib/auth.svelte';
 	import { goto } from '$app/navigation';
 
 	let username = $state('');
@@ -12,12 +12,12 @@
 		error = '';
 
 		try {
-			const data = await login(username, password);
-			setAuthToken(data.access_token);
+			await login(username, password);
+			setAuthenticated(true);
 			goto('/dashboard');
 		} catch (err) {
 			console.error('Login failed:', err);
-			error = 'Login failed. Please check your credentials.';
+			error = (err as Error).message || 'Login failed. Please check your credentials.';
 		}
 	}
 </script>

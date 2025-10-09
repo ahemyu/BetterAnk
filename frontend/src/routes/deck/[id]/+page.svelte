@@ -164,7 +164,25 @@
 	function handleImageChange(event: Event) {
 		const target = event.target as HTMLInputElement;
 		if (target.files && target.files[0]) {
-			llmImageFile = target.files[0];
+			const file = target.files[0];
+
+			// Validate file type
+			const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+			if (!validTypes.includes(file.type)) {
+				alert('Invalid file type. Please upload a JPEG, PNG, GIF, or WebP image.');
+				target.value = '';
+				return;
+			}
+
+			// Validate file size (max 10MB)
+			const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+			if (file.size > maxSize) {
+				alert('File size too large. Please upload an image smaller than 10MB.');
+				target.value = '';
+				return;
+			}
+
+			llmImageFile = file;
 			const reader = new FileReader();
 			reader.onload = (e) => {
 				imagePreview = e.target?.result as string;

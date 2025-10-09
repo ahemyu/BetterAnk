@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { apiGet, apiPost, apiDelete } from '$lib/api';
-	import { logout, isAuthenticated } from '$lib/auth.svelte';
+	import { logout, isAuthenticated, setAuthenticated } from '$lib/auth.svelte';
 	import { goto } from '$app/navigation';
 
 	interface Deck {
@@ -19,25 +19,34 @@
 	let showCreateModal = $state(false);
 	let deckName = $state('');
 	let deckDescription = $state('');
-	let errorMessage = $state('')
+	let errorMessage = $state('');
+	let isLoadingUser = $state(true);
+	let isLoadingDecks = $state(true)
 
 	async function loadUser() {
+		isLoadingUser = true;
 		try {
 			user = await apiGet('/me');
+			setAuthenticated(true);
 		} catch (err) {
 			console.error('Failed to load user:', err);
-			logout();
+			await logout();
 			goto('/login');
+		} finally {
+			isLoadingUser = false;
 		}
 	}
 
 	async function loadDecks() {
+		isLoadingDecks = true;
 		try {
-			errorMessage = ''
+			errorMessage = '';
 			decks = await apiGet('/decks');
 		} catch (err) {
 			console.error('Failed to load decks:', err);
-			errorMessage = 'Failed to load decks. Please refresh the page.'
+			errorMessage = 'Failed to load decks. Please refresh the page.';
+		} finally {
+			isLoadingDecks = false;
 		}
 	}
 
@@ -68,8 +77,8 @@
 		}
 	}
 
-	function handleLogout() {
-		logout();
+	async function handleLogout() {
+		await logout();
 		goto('/login');
 	}
 
@@ -92,11 +101,7 @@
 	}
 
 	onMount(async () => {
-		if (!isAuthenticated()) {
-			goto('/login');
-			return;
-		}
-
+		// Try to load user to check if authenticated
 		await loadUser();
 		await loadDecks();
 	});
@@ -112,7 +117,11 @@
 	<div class="container mx-auto p-4">
 		<div class="flex justify-between items-center mb-6">
 			<h1 class="text-3xl font-bold">
-				{user ? `Welcome, ${user.username}!` : 'Loading...'}
+				{#if isLoadingUser}
+					Loading...
+				{:else}
+					{user ? `Welcome, ${user.username}!` : 'Loading...'}
+				{/if}
 			</h1>
 			<button
 				onclick={handleLogout}
@@ -131,11 +140,20 @@
 
 
 		{#if errorMessage}
-		<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+		<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
 			{errorMessage}
 		</div>
 		{/if}
 
+		{#if isLoadingDecks}
+		<div class="text-center py-8">
+			<svg class="animate-spin h-10 w-10 mx-auto text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+				<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+				<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+			</svg>
+			<p class="mt-2 text-gray-600">Loading decks...</p>
+		</div>
+		{:else}
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 			<ul class="space-y-2">
 				{#each decks as deck (deck.id)}
@@ -154,6 +172,7 @@
 				{/each}
 			</ul>
 		</div>
+		{/if}
 	</div>
 </div>
 

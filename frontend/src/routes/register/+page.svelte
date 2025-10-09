@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { register, login } from '$lib/api';
-	import { setAuthToken } from '$lib/auth.svelte';
+	import { setAuthenticated } from '$lib/auth.svelte';
 	import { goto } from '$app/navigation';
 
 	let email = $state('');
@@ -17,12 +17,12 @@
 			await register(username, password, email);
 
 			// Automatically log them in
-			const loginData = await login(username, password);
-			setAuthToken(loginData.access_token);
+			await login(username, password);
+			setAuthenticated(true);
 			goto('/dashboard');
 		} catch (err) {
 			console.error('Registration failed:', err);
-			error = 'Registration failed. Please try again.';
+			error = (err as Error).message || 'Registration failed. Please try again.';
 		}
 	}
 </script>
