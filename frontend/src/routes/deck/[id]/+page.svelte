@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { apiGet, apiPost, apiPut, apiDelete } from '$lib/api';
@@ -78,9 +78,6 @@
 			manualFront = '';
 			manualBack = '';
 			await loadFlashcards();
-			if (showAllFlashcardsModal) {
-				await loadFlashcards();
-			}
 		} catch (err) {
 			console.error('Failed to add flashcard:', err);
 		}
@@ -128,24 +125,31 @@
 	}
 
 	async function handleSaveGeneratedCards() {
-		try {
-			const count = generatedFlashcards.length;
-			for (const card of generatedFlashcards) {
-				await apiPost('/flashcards', {
+		const count = generatedFlashcards.length;
+		const results = await Promise.allSettled(
+			generatedFlashcards.map((card) =>
+				apiPost('/flashcards', {
 					front: card.front,
 					back: card.back,
 					deck_id: parseInt(deckId)
-				});
-			}
-			generatedFlashcards = [];
-			showAddModal = false;
-			resetModalState();
-			await loadFlashcards();
+				})
+			)
+		);
+
+		const succeeded = results.filter((r) => r.status === 'fulfilled').length;
+		const failed = results.filter((r) => r.status === 'rejected').length;
+
+		if (failed > 0) {
+			console.error('Some flashcards failed to save:', results);
+			alert(`Saved ${succeeded}/${count} flashcards. ${failed} failed.`);
+		} else {
 			alert(`Successfully saved ${count} flashcard${count !== 1 ? 's' : ''}!`);
-		} catch (err) {
-			console.error('Failed to save flashcards:', err);
-			alert('Failed to save some flashcards');
 		}
+
+		generatedFlashcards = [];
+		showAddModal = false;
+		resetModalState();
+		await loadFlashcards();
 	}
 
 	function fileToBase64(file: File): Promise<string> {
@@ -204,13 +208,14 @@
 
 	function resetModalState() {
 		activeTab = 'llm';
-		llmSubTab = 'text';
+		llmSubTab = 'image';
 		manualFront = '';
 		manualBack = '';
 		llmText = '';
 		llmImageFile = null;
 		imagePreview = '';
 		generatedFlashcards = [];
+		llmNumCards = 1;
 	}
 
 	function closeAddModal() {
@@ -240,6 +245,20 @@
 
 		await loadDeck();
 		await loadFlashcards();
+	});
+
+	// Reload data when deckId changes (route navigation)
+	$effect(() => {
+		// Access deckId to track it
+		deckId;
+
+		// Use untrack to prevent infinite loops
+		untrack(() => {
+			if (isAuthenticated()) {
+				loadDeck();
+				loadFlashcards();
+			}
+		});
 	});
 </script>
 
@@ -287,6 +306,8 @@
 
 <!-- Add Flashcard Modal -->
 {#if showAddModal}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		onclick={handleModalClick}
 		class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full"
@@ -320,20 +341,22 @@
 				<!-- Manual Tab Content -->
 				{#if activeTab === 'manual'}
 					<form onsubmit={handleAddManualCard} class="mt-4 space-y-4">
-						<input
-							type="text"
+						<textarea
 							placeholder="Front"
 							bind:value={manualFront}
 							required
-							class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-						/>
-						<input
-							type="text"
+							maxlength="1000"
+							rows="3"
+							class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+						></textarea>
+						<textarea
 							placeholder="Back"
 							bind:value={manualBack}
 							required
-							class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-						/>
+							maxlength="2000"
+							rows="3"
+							class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+						></textarea>
 						<div class="space-y-2">
 							<button
 								type="submit"
@@ -385,7 +408,8 @@
 									bind:value={llmText}
 									rows="6"
 									required
-									class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+									maxlength="10000"
+									class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
 								></textarea>
 								<input
 									type="number"
@@ -496,20 +520,26 @@
 												</div>
 												<div class="space-y-2">
 													<div>
-														<label class="text-xs text-gray-600">Front:</label>
-														<input
-															type="text"
-															bind:value={card.front}
-															class="w-full px-2 py-1 border rounded text-sm"
-														/>
+														<label class="text-xs text-gray-600">
+															Front:
+															<input
+																type="text"
+																bind:value={card.front}
+																maxlength="1000"
+																class="w-full px-2 py-1 border rounded text-sm mt-1"
+															/>
+														</label>
 													</div>
 													<div>
-														<label class="text-xs text-gray-600">Back:</label>
-														<textarea
-															bind:value={card.back}
-															rows="2"
-															class="w-full px-2 py-1 border rounded text-sm"
-														></textarea>
+														<label class="text-xs text-gray-600">
+															Back:
+															<textarea
+																bind:value={card.back}
+																rows="2"
+																maxlength="2000"
+																class="w-full px-2 py-1 border rounded text-sm resize-y mt-1"
+															></textarea>
+														</label>
 													</div>
 													<div class="flex gap-2">
 														<button
@@ -575,6 +605,8 @@
 
 <!-- Show All Flashcards Modal -->
 {#if showAllFlashcardsModal}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		onclick={handleModalClick}
 		class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full"
@@ -617,6 +649,7 @@
 										<textarea
 											bind:value={editFront}
 											rows="3"
+											maxlength="1000"
 											class="w-full px-2 py-1 border rounded-lg resize-y"
 										></textarea>
 									</td>
@@ -624,6 +657,7 @@
 										<textarea
 											bind:value={editBack}
 											rows="3"
+											maxlength="2000"
 											class="w-full px-2 py-1 border rounded-lg resize-y"
 										></textarea>
 									</td>

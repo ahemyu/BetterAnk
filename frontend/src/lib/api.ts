@@ -1,11 +1,12 @@
 // API service layer
+import { getAuthToken } from './auth.svelte';
 
 interface RequestOptions extends RequestInit {
 	headers?: HeadersInit;
 }
 
 function getAuthHeaders(): HeadersInit {
-	const authToken = localStorage.getItem('authToken');
+	const authToken = typeof window !== 'undefined' ? getAuthToken() : null;
 	return {
 		Authorization: `Bearer ${authToken}`,
 		'Content-Type': 'application/json'
@@ -14,8 +15,13 @@ function getAuthHeaders(): HeadersInit {
 
 async function handleResponse(res: Response) {
 	if (!res.ok) {
-		const errorData = await res.json().catch(() => ({}));
-		const errorMessage = errorData.detail || `Request failed with status ${res.status}`;
+		let errorMessage = `Request failed with status ${res.status}`;
+		try {
+			const errorData = await res.json();
+			errorMessage = errorData.detail || errorMessage;
+		} catch {
+			// If JSON parsing fails, use the default error message
+		}
 		throw new Error(errorMessage);
 	}
 	return res.json();
@@ -68,11 +74,7 @@ export async function login(username: string, password: string): Promise<{ acces
 		body: body.toString()
 	});
 
-	if (!res.ok) {
-		throw new Error('Login failed');
-	}
-
-	return res.json();
+	return handleResponse(res);
 }
 
 export async function register(username: string, password: string, email: string): Promise<any> {
@@ -84,9 +86,5 @@ export async function register(username: string, password: string, email: string
 		body: JSON.stringify({ email, username, password })
 	});
 
-	if (!res.ok) {
-		throw new Error('Registration failed');
-	}
-
-	return res.json();
+	return handleResponse(res);
 }

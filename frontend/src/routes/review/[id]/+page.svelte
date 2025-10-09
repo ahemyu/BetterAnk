@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, untrack } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { apiGet, apiPost, apiPut, apiDelete } from '$lib/api';
@@ -155,6 +155,35 @@
 		if (timeInterval) {
 			clearInterval(timeInterval);
 		}
+		timeInterval = null;
+		startTime = null;
+	});
+
+	// Reload review queue when deckId changes (route navigation)
+	$effect(() => {
+		// Access deckId to track it
+		deckId;
+
+		// Use untrack to prevent infinite loops
+		untrack(() => {
+			if (isAuthenticated()) {
+				// Clean up existing timer
+				if (timeInterval) {
+					clearInterval(timeInterval);
+					timeInterval = null;
+				}
+				startTime = null;
+				showBack = false;
+				currentIndex = 0;
+
+				// Load new deck's flashcards
+				loadDueFlashcards().then(() => {
+					if (!isReviewFinished) {
+						startTimer();
+					}
+				});
+			}
+		});
 	});
 </script>
 
@@ -239,6 +268,8 @@
 
 <!-- Edit Modal -->
 {#if showEditModal}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		onclick={(e) => e.target === e.currentTarget && (showEditModal = false)}
 		class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full"
@@ -253,7 +284,9 @@
 							id="edit-front"
 							bind:value={editFront}
 							required
-							class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+							maxlength="1000"
+							rows="3"
+							class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
 						></textarea>
 					</div>
 					<div>
@@ -262,7 +295,9 @@
 							id="edit-back"
 							bind:value={editBack}
 							required
-							class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+							maxlength="2000"
+							rows="3"
+							class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
 						></textarea>
 					</div>
 					<button

@@ -19,6 +19,7 @@
 	let showCreateModal = $state(false);
 	let deckName = $state('');
 	let deckDescription = $state('');
+	let errorMessage = $state('')
 
 	async function loadUser() {
 		try {
@@ -32,9 +33,11 @@
 
 	async function loadDecks() {
 		try {
+			errorMessage = ''
 			decks = await apiGet('/decks');
 		} catch (err) {
 			console.error('Failed to load decks:', err);
+			errorMessage = 'Failed to load decks. Please refresh the page.'
 		}
 	}
 
@@ -52,11 +55,16 @@
 	}
 
 	async function handleDeleteDeck(deckId: number) {
+		if (!confirm('Are you sure you want to delete this deck? All flashcards will be permanently deleted.')) {
+			return;
+		}
+
 		try {
 			await apiDelete(`/decks/${deckId}`);
 			decks = decks.filter((d) => d.id !== deckId);
 		} catch (err) {
 			console.error('Failed to delete deck:', err);
+			alert('Failed to delete deck. Please try again.');
 		}
 	}
 
@@ -121,16 +129,23 @@
 			Create new Deck
 		</button>
 
+
+		{#if errorMessage}
+		<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+			{errorMessage}
+		</div>
+		{/if}
+
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 			<ul class="space-y-2">
 				{#each decks as deck (deck.id)}
 					<li class="bg-white p-4 rounded-lg shadow flex justify-between items-center">
-						<a href="/deck/{deck.id}" class="text-blue-500 hover:underline flex-1">
+						<a href="/deck/{deck.id}" class="text-blue-500 hover:underline flex-1 truncate">
 							{deck.name}
 						</a>
 						<button
 							onclick={() => handleDeleteDeck(deck.id)}
-							class="text-red-500 hover:text-red-700 ml-4 cursor-pointer"
+							class="text-red-500 hover:text-red-700 ml-4 cursor-pointer flex-shrink-0"
 							aria-label="Delete deck"
 						>
 							❌
@@ -143,6 +158,8 @@
 </div>
 
 {#if showCreateModal}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		onclick={handleModalClick}
 		class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full"
@@ -156,12 +173,14 @@
 						placeholder="Deck Name"
 						bind:value={deckName}
 						required
+						maxlength="100"
 						class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 					/>
 					<input
 						type="text"
 						placeholder="Deck Description"
 						bind:value={deckDescription}
+						maxlength="500"
 						class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 					/>
 					<div class="items-center gap-2">

@@ -4,7 +4,7 @@ let authTokenValue = $state<string | null>(
 	typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
 );
 
-export function setAuthToken(token: string | null) {
+export function setAuthToken(token: string | null): void {
 	authTokenValue = token;
 	if (typeof window !== 'undefined') {
 		if (token) {
@@ -23,6 +23,6 @@ export function isAuthenticated(): boolean {
 	return authTokenValue !== null;
 }
 
-export function logout() {
+export function logout(): void {
 	setAuthToken(null);
 }
