@@ -17,9 +17,17 @@
 			show = false;
 		}
 	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (show && (event.key === 'Escape' || event.key === '?')) {
+			event.preventDefault();
+			show = false;
+		}
+	}
 </script>
 
 {#if show}
+	<svelte:window onkeydown={handleKeydown} />
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div

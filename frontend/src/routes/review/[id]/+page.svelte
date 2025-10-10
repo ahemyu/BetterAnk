@@ -133,9 +133,17 @@
 			await apiDelete(`/flashcards/${currentFlashcard.id}`);
 			reviewQueue = reviewQueue.filter((_, i) => i !== currentIndex);
 
-			if (currentIndex >= reviewQueue.length) {
+			// Check if there are any cards remaining
+			if (reviewQueue.length === 0) {
+				// No cards left, mark review as finished
 				isReviewFinished = true;
+			} else if (currentIndex >= reviewQueue.length) {
+				// Current index is out of bounds, move to the last card
+				currentIndex = reviewQueue.length - 1;
+				showBack = false;
+				startTimer();
 			} else {
+				// Current index is still valid, continue with the next card at the same index
 				showBack = false;
 				startTimer();
 			}
@@ -163,9 +171,13 @@
 	function handleKeydown(event: KeyboardEvent) {
 		// Ignore if user is typing in an editable element
 		if (isEditableElement(event.target)) {
-			if (isEscape(event) && showEditModal) {
+			if (isEscape(event)) {
 				event.preventDefault();
-				showEditModal = false;
+				if (showEditModal) {
+					showEditModal = false;
+				} else if (showKeyboardHelp) {
+					showKeyboardHelp = false;
+				}
 			}
 			return;
 		}
@@ -174,9 +186,13 @@
 		if (isEnter(event) && !showBack && !isReviewFinished) {
 			event.preventDefault();
 			handleShowAnswer();
-		} else if (isEscape(event) && showEditModal) {
+		} else if (isEscape(event)) {
 			event.preventDefault();
-			showEditModal = false;
+			if (showEditModal) {
+				showEditModal = false;
+			} else if (showKeyboardHelp) {
+				showKeyboardHelp = false;
+			}
 		} else if (showBack && !showEditModal) {
 			// Feedback keybindings
 			if (event.key === '1') {

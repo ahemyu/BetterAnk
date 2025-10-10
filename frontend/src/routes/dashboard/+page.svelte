@@ -116,17 +116,25 @@
 	function handleKeydown(event: KeyboardEvent) {
 		// Ignore if user is typing in an editable element
 		if (isEditableElement(event.target)) {
-			if (isEscape(event) && showCreateModal) {
+			if (isEscape(event)) {
 				event.preventDefault();
-				closeModal();
+				if (showCreateModal) {
+					closeModal();
+				} else if (showKeyboardHelp) {
+					showKeyboardHelp = false;
+				}
 			}
 			return;
 		}
 
 		// Modal keybindings
-		if (isEscape(event) && showCreateModal) {
+		if (isEscape(event)) {
 			event.preventDefault();
-			closeModal();
+			if (showCreateModal) {
+				closeModal();
+			} else if (showKeyboardHelp) {
+				showKeyboardHelp = false;
+			}
 		}
 
 		// Navigation keybindings (only when modal is not open)

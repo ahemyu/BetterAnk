@@ -279,8 +279,13 @@
 		if (isEditableElement(event.target)) {
 			if (isEscape(event)) {
 				event.preventDefault();
-				if (showAddModal) closeAddModal();
-				if (showAllFlashcardsModal) showAllFlashcardsModal = false;
+				if (showAddModal) {
+					closeAddModal();
+				} else if (showAllFlashcardsModal) {
+					showAllFlashcardsModal = false;
+				} else if (showKeyboardHelp) {
+					showKeyboardHelp = false;
+				}
 			}
 			return;
 		}
@@ -288,8 +293,13 @@
 		// Modal keybindings
 		if (isEscape(event)) {
 			event.preventDefault();
-			if (showAddModal) closeAddModal();
-			if (showAllFlashcardsModal) showAllFlashcardsModal = false;
+			if (showAddModal) {
+				closeAddModal();
+			} else if (showAllFlashcardsModal) {
+				showAllFlashcardsModal = false;
+			} else if (showKeyboardHelp) {
+				showKeyboardHelp = false;
+			}
 		}
 
 		// Navigation keybindings (only when no modal is open)
