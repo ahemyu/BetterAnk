@@ -4,6 +4,8 @@
 	import { goto } from '$app/navigation';
 	import { apiGet, apiPost, apiPut, apiDelete } from '$lib/api';
 	import { isAuthenticated } from '$lib/auth.svelte';
+	import { isEditableElement, isKey, isEscape } from '$lib/keyboard';
+	import KeyboardShortcutsHelp from '$lib/components/KeyboardShortcutsHelp.svelte';
 
 	interface Flashcard {
 		id: number;
@@ -49,6 +51,30 @@
 	let editingFlashcardId = $state<number | null>(null);
 	let editFront = $state('');
 	let editBack = $state('');
+
+	// Keyboard shortcuts help modal
+	let showKeyboardHelp = $state(false);
+	const keyboardShortcuts = [
+		{
+			title: 'Actions',
+			shortcuts: [
+				{ key: 'A', description: 'Add new flashcard' },
+				{ key: 'R', description: 'Start review' },
+				{ key: 'S', description: 'Show all flashcards' }
+			]
+		},
+		{
+			title: 'Navigation',
+			shortcuts: [
+				{ key: 'Z', description: 'Back to dashboard' },
+				{ key: 'Esc', description: 'Close modal' }
+			]
+		},
+		{
+			title: 'Help',
+			shortcuts: [{ key: '?', description: 'Show keyboard shortcuts' }]
+		}
+	];
 
 	async function loadDeck() {
 		try {
@@ -249,9 +275,51 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape') {
-			if (showAddModal) closeAddModal();
-			if (showAllFlashcardsModal) showAllFlashcardsModal = false;
+		// Ignore if user is typing in an editable element
+		if (isEditableElement(event.target)) {
+			if (isEscape(event)) {
+				event.preventDefault();
+				if (showAddModal) {
+					closeAddModal();
+				} else if (showAllFlashcardsModal) {
+					showAllFlashcardsModal = false;
+				} else if (showKeyboardHelp) {
+					showKeyboardHelp = false;
+				}
+			}
+			return;
+		}
+
+		// Modal keybindings
+		if (isEscape(event)) {
+			event.preventDefault();
+			if (showAddModal) {
+				closeAddModal();
+			} else if (showAllFlashcardsModal) {
+				showAllFlashcardsModal = false;
+			} else if (showKeyboardHelp) {
+				showKeyboardHelp = false;
+			}
+		}
+
+		// Navigation keybindings (only when no modal is open)
+		if (!showAddModal && !showAllFlashcardsModal) {
+			if (isKey(event, 'a')) {
+				event.preventDefault();
+				showAddModal = true;
+			} else if (isKey(event, 'z')) {
+				event.preventDefault();
+				goto('/dashboard');
+			} else if (isKey(event, 'r')) {
+				event.preventDefault();
+				goto(`/review/${deckId}`);
+			} else if (isKey(event, 's')) {
+				event.preventDefault();
+				showAllFlashcardsModal = true;
+			} else if (event.key === '?') {
+				event.preventDefault();
+				showKeyboardHelp = true;
+			}
 		}
 	}
 
@@ -298,25 +366,25 @@
 				onclick={() => goto(`/review/${deckId}`)}
 				class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
 			>
-				Start Review
+				Start Review <span class="text-xs opacity-75">(R)</span>
 			</button>
 			<button
 				onclick={() => goto('/dashboard')}
 				class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
 			>
-				Back to Decks
+				Back to Decks <span class="text-xs opacity-75">(Z)</span>
 			</button>
 			<button
 				onclick={() => (showAddModal = true)}
 				class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
 			>
-				Add New Flashcard
+				Add New Flashcard <span class="text-xs opacity-75">(A)</span>
 			</button>
 			<button
 				onclick={() => (showAllFlashcardsModal = true)}
 				class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
 			>
-				Show All Flashcards
+				Show All Flashcards <span class="text-xs opacity-75">(S)</span>
 			</button>
 		</div>
 	</div>
@@ -743,3 +811,6 @@
 		</div>
 	</div>
 {/if}
+
+<!-- Keyboard Shortcuts Help -->
+<KeyboardShortcutsHelp bind:show={showKeyboardHelp} sections={keyboardShortcuts} />

@@ -3,6 +3,8 @@
 	import { apiGet, apiPost, apiDelete } from '$lib/api';
 	import { logout, isAuthenticated, setAuthenticated } from '$lib/auth.svelte';
 	import { goto } from '$app/navigation';
+	import { isEditableElement, isKey, isEscape } from '$lib/keyboard';
+	import KeyboardShortcutsHelp from '$lib/components/KeyboardShortcutsHelp.svelte';
 
 	interface Deck {
 		id: number;
@@ -21,7 +23,24 @@
 	let deckDescription = $state('');
 	let errorMessage = $state('');
 	let isLoadingUser = $state(true);
-	let isLoadingDecks = $state(true)
+	let isLoadingDecks = $state(true);
+
+	// Keyboard shortcuts help modal
+	let showKeyboardHelp = $state(false);
+	const keyboardShortcuts = [
+		{
+			title: 'Actions',
+			shortcuts: [{ key: 'C', description: 'Create new deck' }]
+		},
+		{
+			title: 'Navigation',
+			shortcuts: [{ key: 'Esc', description: 'Close modal' }]
+		},
+		{
+			title: 'Help',
+			shortcuts: [{ key: '?', description: 'Show keyboard shortcuts' }]
+		}
+	];
 
 	async function loadUser() {
 		isLoadingUser = true;
@@ -95,8 +114,38 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape' && showCreateModal) {
-			closeModal();
+		// Ignore if user is typing in an editable element
+		if (isEditableElement(event.target)) {
+			if (isEscape(event)) {
+				event.preventDefault();
+				if (showCreateModal) {
+					closeModal();
+				} else if (showKeyboardHelp) {
+					showKeyboardHelp = false;
+				}
+			}
+			return;
+		}
+
+		// Modal keybindings
+		if (isEscape(event)) {
+			event.preventDefault();
+			if (showCreateModal) {
+				closeModal();
+			} else if (showKeyboardHelp) {
+				showKeyboardHelp = false;
+			}
+		}
+
+		// Navigation keybindings (only when modal is not open)
+		if (!showCreateModal) {
+			if (isKey(event, 'c')) {
+				event.preventDefault();
+				showCreateModal = true;
+			} else if (event.key === '?') {
+				event.preventDefault();
+				showKeyboardHelp = true;
+			}
 		}
 	}
 
@@ -135,7 +184,7 @@
 			onclick={() => (showCreateModal = true)}
 			class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-4"
 		>
-			Create new Deck
+			Create new Deck <span class="text-xs opacity-75">(C)</span>
 		</button>
 
 
@@ -222,3 +271,6 @@
 		</div>
 	</div>
 {/if}
+
+<!-- Keyboard Shortcuts Help -->
+<KeyboardShortcutsHelp bind:show={showKeyboardHelp} sections={keyboardShortcuts} />

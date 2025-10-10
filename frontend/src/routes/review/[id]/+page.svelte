@@ -4,6 +4,8 @@
 	import { goto } from '$app/navigation';
 	import { apiGet, apiPost, apiPut, apiDelete } from '$lib/api';
 	import { isAuthenticated } from '$lib/auth.svelte';
+	import { isEditableElement, isKey, isShiftKey, isEscape, isEnter } from '$lib/keyboard';
+	import KeyboardShortcutsHelp from '$lib/components/KeyboardShortcutsHelp.svelte';
 
 	interface Flashcard {
 		id: number;
@@ -26,6 +28,33 @@
 	let showEditModal = $state(false);
 	let editFront = $state('');
 	let editBack = $state('');
+
+	// Keyboard shortcuts help modal
+	let showKeyboardHelp = $state(false);
+	const keyboardShortcuts = [
+		{
+			title: 'Review Actions',
+			shortcuts: [
+				{ key: 'Enter', description: 'Show answer' },
+				{ key: '1', description: 'Mark as Good' },
+				{ key: '2', description: 'Mark as Mid' },
+				{ key: '3', description: 'Mark as Bad' },
+				{ key: 'E', description: 'Edit flashcard' },
+				{ key: 'Shift+D', description: 'Delete flashcard' }
+			]
+		},
+		{
+			title: 'Navigation',
+			shortcuts: [
+				{ key: 'Z', description: 'Back to dashboard' },
+				{ key: 'Esc', description: 'Close modal' }
+			]
+		},
+		{
+			title: 'Help',
+			shortcuts: [{ key: '?', description: 'Show keyboard shortcuts' }]
+		}
+	];
 
 	let currentFlashcard = $derived(reviewQueue[currentIndex]);
 
@@ -104,9 +133,17 @@
 			await apiDelete(`/flashcards/${currentFlashcard.id}`);
 			reviewQueue = reviewQueue.filter((_, i) => i !== currentIndex);
 
-			if (currentIndex >= reviewQueue.length) {
+			// Check if there are any cards remaining
+			if (reviewQueue.length === 0) {
+				// No cards left, mark review as finished
 				isReviewFinished = true;
+			} else if (currentIndex >= reviewQueue.length) {
+				// Current index is out of bounds, move to the last card
+				currentIndex = reviewQueue.length - 1;
+				showBack = false;
+				startTimer();
 			} else {
+				// Current index is still valid, continue with the next card at the same index
 				showBack = false;
 				startTimer();
 			}
@@ -132,10 +169,61 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && !showBack && !isReviewFinished) {
+		// Ignore if user is typing in an editable element
+		if (isEditableElement(event.target)) {
+			if (isEscape(event)) {
+				event.preventDefault();
+				if (showEditModal) {
+					showEditModal = false;
+				} else if (showKeyboardHelp) {
+					showKeyboardHelp = false;
+				}
+			}
+			return;
+		}
+
+		// Review flow keybindings
+		if (isEnter(event) && !showBack && !isReviewFinished) {
+			event.preventDefault();
 			handleShowAnswer();
-		} else if (event.key === 'Escape' && showEditModal) {
-			showEditModal = false;
+		} else if (isEscape(event)) {
+			event.preventDefault();
+			if (showEditModal) {
+				showEditModal = false;
+			} else if (showKeyboardHelp) {
+				showKeyboardHelp = false;
+			}
+		} else if (showBack && !showEditModal) {
+			// Feedback keybindings
+			if (event.key === '1') {
+				event.preventDefault();
+				handleFeedback('good');
+			} else if (event.key === '2') {
+				event.preventDefault();
+				handleFeedback('mid');
+			} else if (event.key === '3') {
+				event.preventDefault();
+				handleFeedback('bad');
+			} else if (isKey(event, 'e')) {
+				event.preventDefault();
+				handleEdit();
+			} else if (isShiftKey(event, 'd')) {
+				// Require Shift+D for delete (destructive action)
+				event.preventDefault();
+				handleDelete();
+			}
+		}
+
+		// Navigation keybindings
+		if (isKey(event, 'z') && !showEditModal) {
+			event.preventDefault();
+			goto('/dashboard');
+		}
+
+		// Help modal
+		if (event.key === '?' && !showEditModal) {
+			event.preventDefault();
+			showKeyboardHelp = true;
 		}
 	}
 
@@ -201,7 +289,7 @@
 				onclick={() => goto('/dashboard')}
 				class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
 			>
-				Back to Start Menu
+				Back to Start Menu <span class="text-xs opacity-75">(Z)</span>
 			</button>
 		</div>
 	{:else if currentFlashcard}
@@ -217,7 +305,7 @@
 						onclick={handleShowAnswer}
 						class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
 					>
-						Show Answer
+						Show Answer <span class="text-xs opacity-75">(Enter)</span>
 					</button>
 				{/if}
 			</div>
@@ -231,19 +319,19 @@
 							onclick={() => handleFeedback('good')}
 							class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
 						>
-							Good
+							Good <span class="text-xs opacity-75">(1)</span>
 						</button>
 						<button
 							onclick={() => handleFeedback('mid')}
 							class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded"
 						>
-							Mid
+							Mid <span class="text-xs opacity-75">(2)</span>
 						</button>
 						<button
 							onclick={() => handleFeedback('bad')}
 							class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
 						>
-							Bad
+							Bad <span class="text-xs opacity-75">(3)</span>
 						</button>
 					</div>
 					<div class="mt-4 space-x-2">
@@ -251,13 +339,13 @@
 							onclick={handleEdit}
 							class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded"
 						>
-							Edit
+							Edit <span class="text-xs opacity-75">(E)</span>
 						</button>
 						<button
 							onclick={handleDelete}
 							class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
 						>
-							Delete
+							Delete <span class="text-xs opacity-75">(Shift+D)</span>
 						</button>
 					</div>
 				</div>
@@ -311,3 +399,6 @@
 		</div>
 	</div>
 {/if}
+
+<!-- Keyboard Shortcuts Help -->
+<KeyboardShortcutsHelp bind:show={showKeyboardHelp} sections={keyboardShortcuts} />
