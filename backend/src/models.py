@@ -62,13 +62,18 @@ class DBDeck(Base):
     name = Column(String, nullable=False, index=True)
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
-    
+
     # Relationship with flashcards
     flashcards = relationship("DBFlashcard", back_populates="deck", cascade="all, delete-orphan")  # cascade means that if a deck is deleted, all its flashcards will also be deleted
 
     # Adding user relationship
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     user = relationship("DBUser", back_populates="decks")
+
+    # Self-referential relationship for subdecks (one level only)
+    parent_deck_id = Column(Integer, ForeignKey("decks.id", ondelete="CASCADE"), nullable=True, index=True)
+    subdecks = relationship("DBDeck", foreign_keys=[parent_deck_id], remote_side=[id])
+    parent_deck = relationship("DBDeck", foreign_keys=[parent_deck_id], remote_side=[parent_deck_id])
 
 class DBUser(Base):
     """SQLAlchemy model for users table in the database."""
@@ -93,6 +98,7 @@ class Deck(BaseModel):
     name: str
     description: str | None = None
     created_at: datetime | None = None
+    parent_deck_id: int | None = None  # For subdeck support
 
 class UpdateDeck(BaseModel):
     """Update the name and/or description of a Deck."""

@@ -10,6 +10,11 @@
 		id: number;
 		name: string;
 		description: string;
+		parent_deck_id?: number | null;
+	}
+
+	interface DeckWithSubdecks extends Deck {
+		subdecks?: Deck[];
 	}
 
 	interface User {
@@ -17,13 +22,15 @@
 	}
 
 	let user = $state<User | null>(null);
-	let decks = $state<Deck[]>([]);
+	let decks = $state<DeckWithSubdecks[]>([]);
 	let showCreateModal = $state(false);
 	let deckName = $state('');
 	let deckDescription = $state('');
+	let parentDeckId = $state<number | null>(null);
 	let errorMessage = $state('');
 	let isLoadingUser = $state(true);
 	let isLoadingDecks = $state(true);
+	let deckNameInput: HTMLInputElement;
 
 	// Keyboard shortcuts help modal
 	let showKeyboardHelp = $state(false);
@@ -60,7 +67,22 @@
 		isLoadingDecks = true;
 		try {
 			errorMessage = '';
-			decks = await apiGet('/decks');
+			const topLevelDecks = await apiGet('/decks');
+
+			// Load subdecks for each deck
+			const decksWithSubdecks = await Promise.all(
+				topLevelDecks.map(async (deck: Deck) => {
+					try {
+						const subdecks = await apiGet(`/decks/${deck.id}/subdecks`);
+						return { ...deck, subdecks };
+					} catch (err) {
+						console.error(`Failed to load subdecks for deck ${deck.id}:`, err);
+						return { ...deck, subdecks: [] };
+					}
+				})
+			);
+
+			decks = decksWithSubdecks;
 		} catch (err) {
 			console.error('Failed to load decks:', err);
 			errorMessage = 'Failed to load decks. Please refresh the page.';
@@ -72,13 +94,27 @@
 	async function handleCreateDeck(event: Event) {
 		event.preventDefault();
 		try {
-			const newDeck = await apiPost('/decks', { name: deckName, description: deckDescription });
-			decks = [...decks, newDeck];
+			const newDeck = await apiPost('/decks', {
+				name: deckName,
+				description: deckDescription,
+				parent_deck_id: parentDeckId
+			});
+
+			if (parentDeckId) {
+				// If creating a subdeck, reload decks to update the subdeck list
+				await loadDecks();
+			} else {
+				// If creating a top-level deck, add it to the list with empty subdecks
+				decks = [...decks, { ...newDeck, subdecks: [] }];
+			}
+
 			deckName = '';
 			deckDescription = '';
+			parentDeckId = null;
 			showCreateModal = false;
 		} catch (err) {
 			console.error('Failed to create deck:', err);
+			alert('Failed to create deck. Please try again.');
 		}
 	}
 
@@ -89,7 +125,25 @@
 
 		try {
 			await apiDelete(`/decks/${deckId}`);
-			decks = decks.filter((d) => d.id !== deckId);
+
+			// Check if this is a top-level deck or a subdeck
+			const isTopLevel = decks.some(d => d.id === deckId);
+
+			if (isTopLevel) {
+				// Remove from top-level decks
+				decks = decks.filter((d) => d.id !== deckId);
+			} else {
+				// Remove from subdecks - find parent and update its subdecks array
+				decks = decks.map(deck => {
+					if (deck.subdecks && deck.subdecks.some(s => s.id === deckId)) {
+						return {
+							...deck,
+							subdecks: deck.subdecks.filter(s => s.id !== deckId)
+						};
+					}
+					return deck;
+				});
+			}
 		} catch (err) {
 			console.error('Failed to delete deck:', err);
 			alert('Failed to delete deck. Please try again.');
@@ -105,6 +159,12 @@
 		showCreateModal = false;
 		deckName = '';
 		deckDescription = '';
+		parentDeckId = null;
+	}
+
+	function openCreateSubdeckModal(parentId: number) {
+		parentDeckId = parentId;
+		showCreateModal = true;
 	}
 
 	function handleModalClick(event: MouseEvent) {
@@ -148,6 +208,13 @@
 			}
 		}
 	}
+
+	// Auto-focus the deck name input when modal opens
+	$effect(() => {
+		if (showCreateModal && deckNameInput) {
+			deckNameInput.focus();
+		}
+	});
 
 	onMount(async () => {
 		// Try to load user to check if authenticated
@@ -203,23 +270,56 @@
 			<p class="mt-2 text-gray-600">Loading decks...</p>
 		</div>
 		{:else}
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-			<ul class="space-y-2">
-				{#each decks as deck (deck.id)}
-					<li class="bg-white p-4 rounded-lg shadow flex justify-between items-center">
-						<a href="/deck/{deck.id}" class="text-blue-500 hover:underline flex-1 truncate">
+		<div class="space-y-3">
+			{#each decks as deck (deck.id)}
+				<div class="bg-white rounded-lg shadow">
+					<!-- Parent Deck -->
+					<div class="p-4 flex justify-between items-center border-b border-gray-200">
+						<a href="/deck/{deck.id}" class="text-blue-600 hover:underline flex-1 truncate font-medium text-lg">
 							{deck.name}
 						</a>
-						<button
-							onclick={() => handleDeleteDeck(deck.id)}
-							class="text-red-500 hover:text-red-700 ml-4 cursor-pointer flex-shrink-0"
-							aria-label="Delete deck"
-						>
-							❌
-						</button>
-					</li>
-				{/each}
-			</ul>
+						<div class="flex items-center gap-2">
+							<button
+								onclick={() => openCreateSubdeckModal(deck.id)}
+								class="text-green-600 hover:text-green-700 px-3 py-1 rounded-md hover:bg-green-50 text-sm font-medium transition-colors"
+								aria-label="Add subdeck"
+								title="Add subdeck"
+							>
+								+ Subdeck
+							</button>
+							<button
+								onclick={() => handleDeleteDeck(deck.id)}
+								class="text-red-500 hover:text-red-700 cursor-pointer"
+								aria-label="Delete deck"
+								title="Delete deck"
+							>
+								❌
+							</button>
+						</div>
+					</div>
+
+					<!-- Subdecks -->
+					{#if deck.subdecks && deck.subdecks.length > 0}
+						<div class="bg-gray-50 p-2">
+							{#each deck.subdecks as subdeck (subdeck.id)}
+								<div class="ml-6 p-3 bg-white rounded-md shadow-sm mb-2 flex justify-between items-center border-l-4 border-blue-400">
+									<a href="/deck/{subdeck.id}" class="text-blue-500 hover:underline flex-1 truncate">
+										{subdeck.name}
+									</a>
+									<button
+										onclick={() => handleDeleteDeck(subdeck.id)}
+										class="text-red-500 hover:text-red-700 ml-4 cursor-pointer"
+										aria-label="Delete subdeck"
+										title="Delete subdeck"
+									>
+										❌
+									</button>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/each}
 		</div>
 		{/if}
 	</div>
@@ -234,11 +334,19 @@
 	>
 		<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
 			<div class="mt-3 text-center">
-				<h2 class="text-lg leading-6 font-medium text-gray-900">Create Deck</h2>
+				<h2 class="text-lg leading-6 font-medium text-gray-900">
+					{parentDeckId ? 'Create Subdeck' : 'Create Deck'}
+				</h2>
+				{#if parentDeckId}
+					<p class="text-sm text-gray-600 mt-1">
+						Creating a subdeck under "{decks.find((d) => d.id === parentDeckId)?.name || 'Unknown'}"
+					</p>
+				{/if}
 				<form onsubmit={handleCreateDeck} class="mt-2 space-y-4">
 					<input
+						bind:this={deckNameInput}
 						type="text"
-						placeholder="Deck Name"
+						placeholder={parentDeckId ? 'Subdeck Name' : 'Deck Name'}
 						bind:value={deckName}
 						required
 						maxlength="100"
@@ -246,7 +354,7 @@
 					/>
 					<input
 						type="text"
-						placeholder="Deck Description"
+						placeholder={parentDeckId ? 'Subdeck Description' : 'Deck Description'}
 						bind:value={deckDescription}
 						maxlength="500"
 						class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -256,7 +364,7 @@
 							type="submit"
 							class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
 						>
-							Create Deck
+							{parentDeckId ? 'Create Subdeck' : 'Create Deck'}
 						</button>
 						<button
 							type="button"
