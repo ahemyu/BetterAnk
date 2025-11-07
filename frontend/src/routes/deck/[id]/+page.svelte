@@ -18,6 +18,7 @@
 		id: number;
 		name: string;
 		description: string;
+		parent_deck_id?: number;
 	}
 
 	interface GeneratedFlashcard {
@@ -30,8 +31,13 @@
 	let deck = $state<Deck | null>(null);
 	let allFlashcards = $state<Flashcard[]>([]);
 	let dueFlashcards = $state<Flashcard[]>([]);
+	let subdecks = $state<Deck[]>([]);
+	let breadcrumb = $state<Deck[]>([]);
 	let showAddModal = $state(false);
 	let showAllFlashcardsModal = $state(false);
+	let showCreateSubdeckModal = $state(false);
+	let subdeckName = $state('');
+	let subdeckDescription = $state('');
 	let activeTab = $state<'manual' | 'llm'>('llm');
 	let llmSubTab = $state<'text' | 'image'>('image');
 
@@ -59,6 +65,7 @@
 			title: 'Actions',
 			shortcuts: [
 				{ key: 'A', description: 'Add new flashcard' },
+				{ key: 'D', description: 'Create subdeck' },
 				{ key: 'R', description: 'Start review' },
 				{ key: 'S', description: 'Show all flashcards' }
 			]
@@ -79,6 +86,7 @@
 	async function loadDeck() {
 		try {
 			deck = await apiGet(`/decks/${deckId}`);
+			await loadBreadcrumb();
 		} catch (err) {
 			console.error('Failed to load deck:', err);
 		}
@@ -90,6 +98,58 @@
 			dueFlashcards = await apiGet(`/decks/${deckId}/flashcards?due=true`);
 		} catch (err) {
 			console.error('Failed to load flashcards:', err);
+		}
+	}
+
+	async function loadSubdecks() {
+		try {
+			subdecks = await apiGet(`/decks/${deckId}/subdecks`);
+		} catch (err) {
+			console.error('Failed to load subdecks:', err);
+		}
+	}
+
+	async function loadBreadcrumb() {
+		breadcrumb = [];
+		if (!deck) return;
+
+		let currentDeck = deck;
+		const visited = new Set<number>();
+
+		// Build breadcrumb from current deck backwards to root
+		while (currentDeck) {
+			// Prevent infinite loops
+			if (visited.has(currentDeck.id)) break;
+			visited.add(currentDeck.id);
+
+			breadcrumb.unshift(currentDeck);
+
+			if (currentDeck.parent_deck_id) {
+				try {
+					currentDeck = await apiGet(`/decks/${currentDeck.parent_deck_id}`);
+				} catch {
+					break;
+				}
+			} else {
+				break;
+			}
+		}
+	}
+
+	async function handleCreateSubdeck(event: Event) {
+		event.preventDefault();
+		try {
+			await apiPost('/decks', {
+				name: subdeckName,
+				description: subdeckDescription,
+				parent_deck_id: parseInt(deckId)
+			});
+			subdeckName = '';
+			subdeckDescription = '';
+			showCreateSubdeckModal = false;
+			await loadSubdecks();
+		} catch (err) {
+			console.error('Failed to create subdeck:', err);
 		}
 	}
 
@@ -283,6 +343,10 @@
 					closeAddModal();
 				} else if (showAllFlashcardsModal) {
 					showAllFlashcardsModal = false;
+				} else if (showCreateSubdeckModal) {
+					showCreateSubdeckModal = false;
+					subdeckName = '';
+					subdeckDescription = '';
 				} else if (showKeyboardHelp) {
 					showKeyboardHelp = false;
 				}
@@ -297,16 +361,23 @@
 				closeAddModal();
 			} else if (showAllFlashcardsModal) {
 				showAllFlashcardsModal = false;
+			} else if (showCreateSubdeckModal) {
+				showCreateSubdeckModal = false;
+				subdeckName = '';
+				subdeckDescription = '';
 			} else if (showKeyboardHelp) {
 				showKeyboardHelp = false;
 			}
 		}
 
 		// Navigation keybindings (only when no modal is open)
-		if (!showAddModal && !showAllFlashcardsModal) {
+		if (!showAddModal && !showAllFlashcardsModal && !showCreateSubdeckModal) {
 			if (isKey(event, 'a')) {
 				event.preventDefault();
 				showAddModal = true;
+			} else if (isKey(event, 'd')) {
+				event.preventDefault();
+				showCreateSubdeckModal = true;
 			} else if (isKey(event, 'z')) {
 				event.preventDefault();
 				goto('/dashboard');
@@ -331,6 +402,7 @@
 
 		await loadDeck();
 		await loadFlashcards();
+		await loadSubdecks();
 	});
 
 	// Reload data when deckId changes (route navigation)
@@ -343,6 +415,7 @@
 			if (isAuthenticated()) {
 				loadDeck();
 				loadFlashcards();
+				loadSubdecks();
 			}
 		});
 	});
@@ -356,6 +429,28 @@
 
 <div class="bg-gray-100 min-h-screen">
 	<div class="container mx-auto p-4">
+		<!-- Breadcrumb Navigation -->
+		{#if breadcrumb.length > 1}
+			<nav class="mb-4 text-sm">
+				<ol class="flex items-center space-x-2 text-gray-600">
+					{#each breadcrumb as crumb, index}
+						{#if index > 0}
+							<li>/</li>
+						{/if}
+						<li>
+							{#if index < breadcrumb.length - 1}
+								<a href="/deck/{crumb.id}" class="text-blue-500 hover:underline">
+									{crumb.name}
+								</a>
+							{:else}
+								<span class="font-semibold text-gray-900">{crumb.name}</span>
+							{/if}
+						</li>
+					{/each}
+				</ol>
+			</nav>
+		{/if}
+
 		<h1 class="text-3xl font-bold mb-4">{deck?.name || 'Loading...'}</h1>
 		<div class="flex items-center space-x-4 mb-4">
 			<p class="text-lg">{allFlashcards.length} total cards</p>
@@ -381,12 +476,34 @@
 				Add New Flashcard <span class="text-xs opacity-75">(A)</span>
 			</button>
 			<button
+				onclick={() => (showCreateSubdeckModal = true)}
+				class="bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded"
+			>
+				Create Subdeck <span class="text-xs opacity-75">(D)</span>
+			</button>
+			<button
 				onclick={() => (showAllFlashcardsModal = true)}
 				class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
 			>
 				Show All Flashcards <span class="text-xs opacity-75">(S)</span>
 			</button>
 		</div>
+
+		<!-- Subdecks Section -->
+		{#if subdecks.length > 0}
+			<div class="bg-white rounded-lg shadow p-4 mb-4">
+				<h2 class="text-xl font-semibold mb-3">Subdecks</h2>
+				<ul class="space-y-2">
+					{#each subdecks as subdeck (subdeck.id)}
+						<li class="flex items-center justify-between py-2 hover:bg-gray-50 rounded px-2">
+							<a href="/deck/{subdeck.id}" class="text-blue-500 hover:underline flex-1">
+								📁 {subdeck.name}
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
 	</div>
 </div>
 
@@ -807,6 +924,58 @@
 				>
 					Close
 				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Create Subdeck Modal -->
+{#if showCreateSubdeckModal}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		onclick={handleModalClick}
+		class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full"
+	>
+		<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+			<div class="mt-3 text-center">
+				<h2 class="text-lg leading-6 font-medium text-gray-900">Create Subdeck</h2>
+				<form onsubmit={handleCreateSubdeck} class="mt-2 space-y-4">
+					<input
+						type="text"
+						placeholder="Subdeck Name"
+						bind:value={subdeckName}
+						required
+						maxlength="100"
+						class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+					/>
+					<input
+						type="text"
+						placeholder="Subdeck Description (optional)"
+						bind:value={subdeckDescription}
+						maxlength="500"
+						class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+					/>
+					<div class="items-center gap-2">
+						<button
+							type="submit"
+							class="w-full bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded"
+						>
+							Create Subdeck
+						</button>
+						<button
+							type="button"
+							onclick={() => {
+								showCreateSubdeckModal = false;
+								subdeckName = '';
+								subdeckDescription = '';
+							}}
+							class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mt-2"
+						>
+							Cancel
+						</button>
+					</div>
+				</form>
 			</div>
 		</div>
 	</div>

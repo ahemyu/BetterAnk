@@ -10,6 +10,15 @@
 		id: number;
 		name: string;
 		description: string;
+		parent_deck_id?: number;
+	}
+
+	interface DeckTree {
+		id: number;
+		name: string;
+		description: string;
+		parent_deck_id?: number;
+		children: DeckTree[];
 	}
 
 	interface User {
@@ -17,7 +26,8 @@
 	}
 
 	let user = $state<User | null>(null);
-	let decks = $state<Deck[]>([]);
+	let deckTree = $state<DeckTree[]>([]);
+	let expandedDecks = $state<Set<number>>(new Set());
 	let showCreateModal = $state(false);
 	let deckName = $state('');
 	let deckDescription = $state('');
@@ -60,7 +70,9 @@
 		isLoadingDecks = true;
 		try {
 			errorMessage = '';
-			decks = await apiGet('/decks');
+			deckTree = await apiGet('/decks/tree/all');
+			// Expand all decks by default
+			expandAllDecks(deckTree);
 		} catch (err) {
 			console.error('Failed to load decks:', err);
 			errorMessage = 'Failed to load decks. Please refresh the page.';
@@ -69,27 +81,51 @@
 		}
 	}
 
+	function expandAllDecks(tree: DeckTree[]) {
+		tree.forEach(deck => {
+			expandedDecks.add(deck.id);
+			if (deck.children && deck.children.length > 0) {
+				expandAllDecks(deck.children);
+			}
+		});
+	}
+
+	function toggleDeckExpansion(deckId: number) {
+		if (expandedDecks.has(deckId)) {
+			expandedDecks.delete(deckId);
+		} else {
+			expandedDecks.add(deckId);
+		}
+		expandedDecks = expandedDecks; // Trigger reactivity
+	}
+
 	async function handleCreateDeck(event: Event) {
 		event.preventDefault();
 		try {
-			const newDeck = await apiPost('/decks', { name: deckName, description: deckDescription });
-			decks = [...decks, newDeck];
+			await apiPost('/decks', { name: deckName, description: deckDescription });
 			deckName = '';
 			deckDescription = '';
 			showCreateModal = false;
+			// Reload the tree to show the new deck
+			await loadDecks();
 		} catch (err) {
 			console.error('Failed to create deck:', err);
 		}
 	}
 
-	async function handleDeleteDeck(deckId: number) {
-		if (!confirm('Are you sure you want to delete this deck? All flashcards will be permanently deleted.')) {
+	async function handleDeleteDeck(deckId: number, hasChildren: boolean) {
+		const warningMessage = hasChildren
+			? 'Are you sure you want to delete this deck? All subdecks and flashcards will be permanently deleted.'
+			: 'Are you sure you want to delete this deck? All flashcards will be permanently deleted.';
+
+		if (!confirm(warningMessage)) {
 			return;
 		}
 
 		try {
 			await apiDelete(`/decks/${deckId}`);
-			decks = decks.filter((d) => d.id !== deckId);
+			// Reload the tree to reflect deletion
+			await loadDecks();
 		} catch (err) {
 			console.error('Failed to delete deck:', err);
 			alert('Failed to delete deck. Please try again.');
@@ -203,23 +239,55 @@
 			<p class="mt-2 text-gray-600">Loading decks...</p>
 		</div>
 		{:else}
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-			<ul class="space-y-2">
-				{#each decks as deck (deck.id)}
-					<li class="bg-white p-4 rounded-lg shadow flex justify-between items-center">
-						<a href="/deck/{deck.id}" class="text-blue-500 hover:underline flex-1 truncate">
-							{deck.name}
-						</a>
-						<button
-							onclick={() => handleDeleteDeck(deck.id)}
-							class="text-red-500 hover:text-red-700 ml-4 cursor-pointer flex-shrink-0"
-							aria-label="Delete deck"
-						>
-							❌
-						</button>
-					</li>
-				{/each}
-			</ul>
+		<div class="bg-white rounded-lg shadow p-4">
+			{#if deckTree.length === 0}
+				<p class="text-gray-500 text-center py-4">No decks yet. Create your first deck to get started!</p>
+			{:else}
+				{#snippet renderDeckTree(decks: DeckTree[], level: number)}
+					<ul class="space-y-1">
+						{#each decks as deck (deck.id)}
+							<li>
+								<div class="flex items-center py-2 hover:bg-gray-50 rounded" style="padding-left: {level * 1.5}rem">
+									{#if deck.children && deck.children.length > 0}
+										<button
+											onclick={() => toggleDeckExpansion(deck.id)}
+											class="mr-2 text-gray-600 hover:text-gray-800 w-6 h-6 flex items-center justify-center"
+											aria-label={expandedDecks.has(deck.id) ? 'Collapse' : 'Expand'}
+										>
+											{expandedDecks.has(deck.id) ? '▼' : '▶'}
+										</button>
+									{:else}
+										<span class="mr-2 w-6"></span>
+									{/if}
+
+									<span class="mr-2 text-xl">{deck.children && deck.children.length > 0 ? '📁' : '📄'}</span>
+
+									<a
+										href="/deck/{deck.id}"
+										class="text-blue-500 hover:underline flex-1 truncate"
+									>
+										{deck.name}
+									</a>
+
+									<button
+										onclick={() => handleDeleteDeck(deck.id, deck.children.length > 0)}
+										class="text-red-500 hover:text-red-700 ml-4 cursor-pointer flex-shrink-0 px-2"
+										aria-label="Delete deck"
+									>
+										❌
+									</button>
+								</div>
+
+								{#if deck.children && deck.children.length > 0 && expandedDecks.has(deck.id)}
+									{@render renderDeckTree(deck.children, level + 1)}
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/snippet}
+
+				{@render renderDeckTree(deckTree, 0)}
+			{/if}
 		</div>
 		{/if}
 	</div>

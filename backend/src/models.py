@@ -62,13 +62,17 @@ class DBDeck(Base):
     name = Column(String, nullable=False, index=True)
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
-    
+
     # Relationship with flashcards
     flashcards = relationship("DBFlashcard", back_populates="deck", cascade="all, delete-orphan")  # cascade means that if a deck is deleted, all its flashcards will also be deleted
 
     # Adding user relationship
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     user = relationship("DBUser", back_populates="decks")
+
+    # Self-referential relationship for subdecks
+    parent_deck_id = Column(Integer, ForeignKey("decks.id"), nullable=True, index=True)
+    parent = relationship("DBDeck", remote_side=[id], backref="children")
 
 class DBUser(Base):
     """SQLAlchemy model for users table in the database."""
@@ -93,11 +97,22 @@ class Deck(BaseModel):
     name: str
     description: str | None = None
     created_at: datetime | None = None
+    parent_deck_id: int | None = None  # Optional parent deck for subdeck support
 
 class UpdateDeck(BaseModel):
     """Update the name and/or description of a Deck."""
     name: str | None = None
     description: str | None = None
+
+class DeckTree(BaseModel):
+    """Represents a deck with its subdeck hierarchy."""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    description: str | None = None
+    created_at: datetime | None = None
+    parent_deck_id: int | None = None
+    children: list['DeckTree'] = []  # Recursive structure for subdecks
 
 class UpdateFlashcard(BaseModel):
     """Update the front and/or back of a flashcard."""

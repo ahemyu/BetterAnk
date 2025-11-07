@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
 
-from src.models import Deck, DBDeck, UpdateDeck, Flashcard, DBFlashcard, DBUser, Message
+from src.models import Deck, DBDeck, UpdateDeck, Flashcard, DBFlashcard, DBUser, Message, DeckTree
 from src.database import get_db
 from src.dependencies import get_current_user
 
@@ -23,14 +23,27 @@ def create_deck(
 ):
     """
     Create a new deck for the current user.
+    Can optionally be a subdeck by providing parent_deck_id.
     """
     logger.info(f"Creating deck '{deck.name}' for user {current_user.username} (ID: {current_user.id})")
+
+    # Validate parent deck if provided
+    if deck.parent_deck_id is not None:
+        parent_deck = db.query(DBDeck).filter(
+            DBDeck.id == deck.parent_deck_id,
+            DBDeck.user_id == current_user.id
+        ).first()
+        if parent_deck is None:
+            logger.warning(f"Parent deck {deck.parent_deck_id} not found for user {current_user.username}")
+            raise HTTPException(status_code=404, detail="Parent deck not found")
+        logger.info(f"Creating subdeck under parent deck '{parent_deck.name}' (ID: {deck.parent_deck_id})")
 
     db_deck = DBDeck(
         name=deck.name,
         description=deck.description,
         created_at=datetime.now(),
-        user_id=current_user.id
+        user_id=current_user.id,
+        parent_deck_id=deck.parent_deck_id
     )
 
     db.add(db_deck)
@@ -140,6 +153,70 @@ def update_deck(
 
     logger.info(f"Deck {deck_id} updated successfully")
     return db_deck
+
+@router.get("/{deck_id}/subdecks", response_model=List[Deck])
+def get_subdecks(
+    deck_id: int,
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all direct subdecks of a specific deck."""
+    logger.info(f"Fetching subdecks for deck {deck_id}, user {current_user.username}")
+
+    # Verify the parent deck exists and belongs to user
+    parent_deck = db.query(DBDeck).filter(
+        DBDeck.id == deck_id,
+        DBDeck.user_id == current_user.id
+    ).first()
+    if parent_deck is None:
+        logger.warning(f"Parent deck {deck_id} not found for user {current_user.username}")
+        raise HTTPException(status_code=404, detail="Deck not found")
+
+    # Get all subdecks
+    subdecks = db.query(DBDeck).filter(
+        DBDeck.parent_deck_id == deck_id,
+        DBDeck.user_id == current_user.id
+    ).all()
+
+    logger.info(f"Retrieved {len(subdecks)} subdecks for deck {deck_id}")
+    return subdecks
+
+@router.get("/tree/all", response_model=List[DeckTree])
+def get_deck_tree(
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get the full deck hierarchy tree for the current user.
+    Returns only top-level decks with nested children.
+    """
+    logger.info(f"Fetching deck tree for user {current_user.username}")
+
+    def build_tree(deck: DBDeck) -> DeckTree:
+        """Recursively build deck tree with children."""
+        children = db.query(DBDeck).filter(
+            DBDeck.parent_deck_id == deck.id,
+            DBDeck.user_id == current_user.id
+        ).all()
+
+        return DeckTree(
+            id=deck.id,
+            name=deck.name,
+            description=deck.description,
+            created_at=deck.created_at,
+            parent_deck_id=deck.parent_deck_id,
+            children=[build_tree(child) for child in children]
+        )
+
+    # Get only top-level decks (no parent)
+    top_level_decks = db.query(DBDeck).filter(
+        DBDeck.parent_deck_id.is_(None),
+        DBDeck.user_id == current_user.id
+    ).all()
+
+    tree = [build_tree(deck) for deck in top_level_decks]
+    logger.info(f"Built deck tree with {len(tree)} top-level decks")
+    return tree
 
 @router.delete("/{deck_id}", response_model=Message)
 def delete_deck(
