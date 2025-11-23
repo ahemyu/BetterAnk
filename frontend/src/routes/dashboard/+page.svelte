@@ -9,8 +9,11 @@
 	interface Deck {
 		id: number;
 		name: string;
-		description: string;
+		description: string | null;
+		parent_id: number | null;
 	}
+
+	type DeckNode = Deck & { subdecks: DeckNode[] };
 
 	interface User {
 		username: string;
@@ -19,8 +22,12 @@
 	let user = $state<User | null>(null);
 	let decks = $state<Deck[]>([]);
 	let showCreateModal = $state(false);
+	let showSubdeckModal = $state(false);
 	let deckName = $state('');
 	let deckDescription = $state('');
+	let subdeckName = $state('');
+	let subdeckDescription = $state('');
+	let parentDeckForSubdeck = $state<Deck | null>(null);
 	let errorMessage = $state('');
 	let isLoadingUser = $state(true);
 	let isLoadingDecks = $state(true);
@@ -41,6 +48,36 @@
 			shortcuts: [{ key: '?', description: 'Show keyboard shortcuts' }]
 		}
 	];
+
+	function buildDeckTree(list: Deck[]): DeckNode[] {
+		const map = new Map<number, DeckNode>();
+		const roots: DeckNode[] = [];
+
+		list.forEach((deck) => {
+			map.set(deck.id, { ...deck, subdecks: [] });
+		});
+
+		map.forEach((node) => {
+			if (node.parent_id !== null && node.parent_id !== undefined) {
+				const parent = map.get(node.parent_id);
+				if (parent) {
+					parent.subdecks.push(node);
+				} else {
+					roots.push(node);
+				}
+			} else {
+				roots.push(node);
+			}
+		});
+
+		const sortByName = (a: DeckNode, b: DeckNode) => a.name.localeCompare(b.name);
+		roots.sort(sortByName);
+		map.forEach((node) => node.subdecks.sort(sortByName));
+
+		return roots;
+	}
+
+	let deckTree = $derived(buildDeckTree(decks));
 
 	async function loadUser() {
 		isLoadingUser = true;
@@ -82,6 +119,37 @@
 		}
 	}
 
+	function openSubdeckModal(deck: Deck) {
+		parentDeckForSubdeck = deck;
+		subdeckName = '';
+		subdeckDescription = '';
+		showSubdeckModal = true;
+	}
+
+	function closeSubdeckModal() {
+		showSubdeckModal = false;
+		parentDeckForSubdeck = null;
+		subdeckName = '';
+		subdeckDescription = '';
+	}
+
+	async function handleCreateSubdeck(event: Event) {
+		event.preventDefault();
+		if (!parentDeckForSubdeck) return;
+		try {
+			await apiPost('/decks', {
+				name: subdeckName,
+				description: subdeckDescription,
+				parent_id: parentDeckForSubdeck.id
+			});
+			await loadDecks();
+			closeSubdeckModal();
+		} catch (err) {
+			console.error('Failed to create subdeck:', err);
+			alert('Failed to create subdeck. Please try again.');
+		}
+	}
+
 	async function handleDeleteDeck(deckId: number) {
 		if (!confirm('Are you sure you want to delete this deck? All flashcards will be permanently deleted.')) {
 			return;
@@ -113,6 +181,12 @@
 		}
 	}
 
+	function handleSubdeckModalClick(event: MouseEvent) {
+		if (event.target === event.currentTarget) {
+			closeSubdeckModal();
+		}
+	}
+
 	function handleKeydown(event: KeyboardEvent) {
 		// Ignore if user is typing in an editable element
 		if (isEditableElement(event.target)) {
@@ -120,6 +194,8 @@
 				event.preventDefault();
 				if (showCreateModal) {
 					closeModal();
+				} else if (showSubdeckModal) {
+					closeSubdeckModal();
 				} else if (showKeyboardHelp) {
 					showKeyboardHelp = false;
 				}
@@ -132,13 +208,15 @@
 			event.preventDefault();
 			if (showCreateModal) {
 				closeModal();
+			} else if (showSubdeckModal) {
+				closeSubdeckModal();
 			} else if (showKeyboardHelp) {
 				showKeyboardHelp = false;
 			}
 		}
 
-		// Navigation keybindings (only when modal is not open)
-		if (!showCreateModal) {
+		// Navigation keybindings (only when modals are not open)
+		if (!showCreateModal && !showSubdeckModal) {
 			if (isKey(event, 'c')) {
 				event.preventDefault();
 				showCreateModal = true;
@@ -203,25 +281,59 @@
 			<p class="mt-2 text-gray-600">Loading decks...</p>
 		</div>
 		{:else}
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-			<ul class="space-y-2">
-				{#each decks as deck (deck.id)}
-					<li class="bg-white p-4 rounded-lg shadow flex justify-between items-center">
-						<a href="/deck/{deck.id}" class="text-blue-500 hover:underline flex-1 truncate">
-							{deck.name}
-						</a>
-						<button
-							onclick={() => handleDeleteDeck(deck.id)}
-							class="text-red-500 hover:text-red-700 ml-4 cursor-pointer flex-shrink-0"
-							aria-label="Delete deck"
-						>
-							❌
-						</button>
-					</li>
-				{/each}
-			</ul>
+		<div class="space-y-3">
+			{#each deckTree as deck (deck.id)}
+				<div class="bg-white p-4 rounded-lg shadow">
+					<div class="flex flex-wrap items-center justify-between gap-3">
+						<div>
+							<a href="/deck/{deck.id}" class="text-lg font-semibold text-blue-600 hover:underline block">
+								{deck.name}
+							</a>
+							{#if deck.description}
+								<p class="text-sm text-gray-500 line-clamp-2">{deck.description}</p>
+							{/if}
+						</div>
+						<div class="flex gap-2">
+							<button
+								onclick={() => handleDeleteDeck(deck.id)}
+								class="text-red-500 hover:text-red-700 font-semibold"
+							>
+								Delete
+							</button>
+							<button
+								onclick={() => openSubdeckModal(deck)}
+								class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1 rounded"
+							>
+								Create subdeck
+							</button>
+						</div>
+					</div>
+
+					{#if deck.subdecks.length > 0}
+						<div class="mt-3 pl-6 border-l-2 border-dashed border-gray-200 space-y-2">
+							{#each deck.subdecks as child}
+								<div class="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
+									<div class="flex items-center gap-2">
+										<span class="text-gray-400">├──</span>
+										<a href="/deck/{child.id}" class="text-blue-600 hover:underline">
+											{child.name}
+										</a>
+									</div>
+									<button
+										onclick={() => handleDeleteDeck(child.id)}
+										class="text-sm text-red-500 hover:text-red-700"
+									>
+										Delete
+									</button>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/each}
 		</div>
 		{/if}
+
 	</div>
 </div>
 
@@ -261,6 +373,55 @@
 						<button
 							type="button"
 							onclick={closeModal}
+							class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mt-2"
+						>
+							Cancel
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+{/if}
+
+{#if showSubdeckModal && parentDeckForSubdeck}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		onclick={handleSubdeckModalClick}
+		class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full"
+	>
+		<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+			<div class="mt-3 text-center">
+				<h2 class="text-lg leading-6 font-medium text-gray-900">
+					Create subdeck for “{parentDeckForSubdeck.name}”
+				</h2>
+				<form onsubmit={handleCreateSubdeck} class="mt-2 space-y-4">
+					<input
+						type="text"
+						placeholder="Subdeck Name"
+						bind:value={subdeckName}
+						required
+						maxlength="100"
+						class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+					/>
+					<input
+						type="text"
+						placeholder="Description (optional)"
+						bind:value={subdeckDescription}
+						maxlength="500"
+						class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+					/>
+					<div class="items-center gap-2">
+						<button
+							type="submit"
+							class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded"
+						>
+							Create Subdeck
+						</button>
+						<button
+							type="button"
+							onclick={closeSubdeckModal}
 							class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mt-2"
 						>
 							Cancel

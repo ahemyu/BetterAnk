@@ -1,10 +1,19 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy.orm import Session, selectinload
+from typing import List, cast
 from datetime import datetime
 
-from src.models import Deck, DBDeck, UpdateDeck, Flashcard, DBFlashcard, DBUser, Message
+from src.models import (
+    Deck,
+    DeckTree,
+    DBDeck,
+    UpdateDeck,
+    Flashcard,
+    DBFlashcard,
+    DBUser,
+    Message,
+)
 from src.database import get_db
 from src.dependencies import get_current_user
 
@@ -15,22 +24,47 @@ router = APIRouter(
     tags=["decks"],
 )
 
+
 @router.post("", response_model=Deck)
 def create_deck(
     deck: Deck,
     current_user: DBUser = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
-    Create a new deck for the current user.
+    Create a new deck (or subdeck) for the current user.
     """
-    logger.info(f"Creating deck '{deck.name}' for user {current_user.username} (ID: {current_user.id})")
+    logger.info(
+        f"Creating deck '{deck.name}' for user {current_user.username} (ID: {current_user.id})"
+    )
+
+    parent_id = deck.parent_id
+    if parent_id is not None:
+        parent_deck = (
+            db.query(DBDeck)
+            .filter(DBDeck.id == parent_id, DBDeck.user_id == current_user.id)
+            .first()
+        )
+        if parent_deck is None:
+            logger.warning(
+                f"Parent deck {parent_id} not found for user {current_user.username}"
+            )
+            raise HTTPException(status_code=404, detail="Parent deck not found")
+        if parent_deck.parent_id is not None:
+            logger.warning(
+                f"Attempt to create nested subdeck under deck {parent_id} for user {current_user.username}"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail="Subdecks cannot have their own subdecks",
+            )
 
     db_deck = DBDeck(
         name=deck.name,
         description=deck.description,
         created_at=datetime.now(),
-        user_id=current_user.id
+        user_id=current_user.id,
+        parent_id=parent_id,
     )
 
     db.add(db_deck)
@@ -40,41 +74,58 @@ def create_deck(
     logger.info(f"Deck created successfully: '{deck.name}' (ID: {db_deck.id})")
     return db_deck
 
-@router.get("/{deck_id}", response_model=Deck)
+
+@router.get("/{deck_id}", response_model=DeckTree)
 def get_deck(
     deck_id: int,
+    include_subdecks: bool = False,
     current_user: DBUser = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get a specific deck by ID."""
-    logger.info(f"Fetching deck {deck_id} for user {current_user.username} (ID: {current_user.id})")
+    logger.info(
+        f"Fetching deck {deck_id} for user {current_user.username} (ID: {current_user.id}), include_subdecks={include_subdecks}"
+    )
 
-    db_deck = db.query(DBDeck).filter(
+    query = db.query(DBDeck).filter(
         DBDeck.id == deck_id,
-        DBDeck.user_id == current_user.id
-    ).first()
+        DBDeck.user_id == current_user.id,
+    )
+    if include_subdecks:
+        query = query.options(selectinload(DBDeck.subdecks))
+
+    db_deck = query.first()
     if db_deck is None:
         logger.warning(f"Deck {deck_id} not found for user {current_user.username}")
         raise HTTPException(status_code=404, detail="Deck not found")
 
+    if include_subdecks and db_deck.subdecks:
+        db_deck.subdecks.sort(key=lambda child: (child.name or "").lower())
+
     logger.debug(f"Deck retrieved: '{db_deck.name}' (ID: {db_deck.id})")
     return db_deck
+
 
 @router.get("", response_model=List[Deck])
 def get_decks(
     limit: int = 100,
     current_user: DBUser = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get all decks for the current user with pagination.
     """
-    logger.info(f"Fetching decks for user {current_user.username} (ID: {current_user.id}), limit: {limit}")
+    logger.info(
+        f"Fetching decks for user {current_user.username} (ID: {current_user.id}), limit: {limit}"
+    )
 
-    decks = db.query(DBDeck).filter(DBDeck.user_id == current_user.id).limit(limit).all()
+    decks = (
+        db.query(DBDeck).filter(DBDeck.user_id == current_user.id).limit(limit).all()
+    )
 
     logger.info(f"Retrieved {len(decks)} decks for user {current_user.username}")
     return decks
+
 
 @router.get("/{deck_id}/flashcards", response_model=List[Flashcard])
 def get_deck_flashcards(
@@ -82,22 +133,39 @@ def get_deck_flashcards(
     due: bool = False,
     limit: int = 100,
     current_user: DBUser = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get flashcards in a deck."""
-    logger.info(f"Fetching flashcards for deck {deck_id}, user {current_user.username}, due: {due}, limit: {limit}")
+    logger.info(
+        f"Fetching flashcards for deck {deck_id}, user {current_user.username}, due: {due}, limit: {limit}"
+    )
 
-    db_deck = db.query(DBDeck).filter(
-        DBDeck.id == deck_id,
-        DBDeck.user_id == current_user.id
-    ).first()
+    db_deck = (
+        db.query(DBDeck)
+        .filter(DBDeck.id == deck_id, DBDeck.user_id == current_user.id)
+        .first()
+    )
     if db_deck is None:
         logger.warning(f"Deck {deck_id} not found for user {current_user.username}")
         raise HTTPException(status_code=404, detail="Deck not found")
 
+    deck_ids = [deck_id]
+    if db_deck.parent_id is None:
+        subdeck_ids = [
+            cast(int, row[0])
+            for row in db.query(DBDeck.id)
+            .filter(DBDeck.parent_id == deck_id, DBDeck.user_id == current_user.id)
+            .all()
+        ]
+        deck_ids.extend(subdeck_ids)
+        if subdeck_ids:
+            logger.debug(
+                f"Deck {deck_id} includes subdeck IDs {subdeck_ids} for user {current_user.username}"
+            )
+
     query = db.query(DBFlashcard).filter(
-        DBFlashcard.deck_id == deck_id,
-        DBFlashcard.user_id == current_user.id
+        DBFlashcard.deck_id.in_(deck_ids),
+        DBFlashcard.user_id == current_user.id,
     )
 
     if due:
@@ -105,25 +173,31 @@ def get_deck_flashcards(
         query = query.filter(DBFlashcard.next_review_at <= now)
 
     flashcards = query.limit(limit).all()
-    logger.info(f"Retrieved {len(flashcards)} flashcards from deck {deck_id}")
+    logger.info(
+        f"Retrieved {len(flashcards)} flashcards from deck {deck_id} (aggregated IDs: {deck_ids})"
+    )
     return flashcards
+
 
 @router.put("/{deck_id}", response_model=Deck)
 def update_deck(
     deck_id: int,
     deck: UpdateDeck,
     current_user: DBUser = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Update a specific deck.
     """
-    logger.info(f"Updating deck {deck_id} for user {current_user.username} (ID: {current_user.id})")
+    logger.info(
+        f"Updating deck {deck_id} for user {current_user.username} (ID: {current_user.id})"
+    )
 
-    db_deck = db.query(DBDeck).filter(
-        DBDeck.id == deck_id,
-        DBDeck.user_id == current_user.id
-    ).first()
+    db_deck = (
+        db.query(DBDeck)
+        .filter(DBDeck.id == deck_id, DBDeck.user_id == current_user.id)
+        .first()
+    )
     if db_deck is None:
         logger.warning(f"Deck {deck_id} not found for user {current_user.username}")
         raise HTTPException(status_code=404, detail="Deck not found")
@@ -141,19 +215,23 @@ def update_deck(
     logger.info(f"Deck {deck_id} updated successfully")
     return db_deck
 
+
 @router.delete("/{deck_id}", response_model=Message)
 def delete_deck(
     deck_id: int,
     current_user: DBUser = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Delete a specific deck."""
-    logger.info(f"Deleting deck {deck_id} for user {current_user.username} (ID: {current_user.id})")
+    logger.info(
+        f"Deleting deck {deck_id} for user {current_user.username} (ID: {current_user.id})"
+    )
 
-    db_deck = db.query(DBDeck).filter(
-        DBDeck.id == deck_id,
-        DBDeck.user_id == current_user.id
-    ).first()
+    db_deck = (
+        db.query(DBDeck)
+        .filter(DBDeck.id == deck_id, DBDeck.user_id == current_user.id)
+        .first()
+    )
     if db_deck is None:
         logger.warning(f"Deck {deck_id} not found for user {current_user.username}")
         raise HTTPException(status_code=404, detail="Deck not found")
@@ -165,30 +243,37 @@ def delete_deck(
     logger.info(f"Deck '{deck_name}' (ID: {deck_id}) deleted successfully")
     return {"message": "Deck deleted successfully"}
 
+
 @router.put("/{deck_id}/flashcard/{flashcard_id}", response_model=Deck)
 def add_flashcard_to_deck(
     deck_id: int,
     flashcard_id: int,
     current_user: DBUser = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Add a flashcard to a deck (both must belong to current user).
     """
-    logger.info(f"Adding flashcard {flashcard_id} to deck {deck_id} for user {current_user.username}")
+    logger.info(
+        f"Adding flashcard {flashcard_id} to deck {deck_id} for user {current_user.username}"
+    )
 
-    flashcard = db.query(DBFlashcard).filter(
-        DBFlashcard.id == flashcard_id,
-        DBFlashcard.user_id == current_user.id
-    ).first()
+    flashcard = (
+        db.query(DBFlashcard)
+        .filter(DBFlashcard.id == flashcard_id, DBFlashcard.user_id == current_user.id)
+        .first()
+    )
     if flashcard is None:
-        logger.warning(f"Flashcard {flashcard_id} not found for user {current_user.username}")
+        logger.warning(
+            f"Flashcard {flashcard_id} not found for user {current_user.username}"
+        )
         raise HTTPException(status_code=404, detail="Flashcard not found")
 
-    deck = db.query(DBDeck).filter(
-        DBDeck.id == deck_id,
-        DBDeck.user_id == current_user.id
-    ).first()
+    deck = (
+        db.query(DBDeck)
+        .filter(DBDeck.id == deck_id, DBDeck.user_id == current_user.id)
+        .first()
+    )
     if deck is None:
         logger.warning(f"Deck {deck_id} not found for user {current_user.username}")
         raise HTTPException(status_code=404, detail="Deck not found")

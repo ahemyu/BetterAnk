@@ -1,0 +1,20 @@
+# AGENTS.md – BetterAnk
+- Backend deps: `cd backend && uv sync` (or `pip install .[test]`).
+- Run API: `cd backend && uv run uvicorn src.main:app --host 0.0.0.0 --port 8080` after `docker compose up -d`.
+- Backend tests: `cd backend && uv run pytest` (uses `pytest.ini` markers).
+- Single test: `cd backend && uv run pytest tests/test_decks.py::test_create_deck -vv`.
+- Frontend deps & dev: `cd frontend && npm install && npm run dev`.
+- Frontend build/preview/check: `npm run build`, `npm run preview`, `npm run check`.
+- No Cursor (.cursor) or Copilot instructions exist; follow this file.
+- Python formatting: Black-like 4-space indent, 88-char lines, double quotes preferred.
+- Order imports stdlib → third-party → `src.*`; avoid relative `..` hops.
+- Type everything: SQLAlchemy models + Pydantic schemas in `src/models.py`; annotate FastAPI endpoints.
+- Inject DB/session/auth via FastAPI `Depends` helpers (`get_db`, `get_current_user`).
+- Handle errors with `HTTPException` plus precise `detail`; log `info`/`warning` before raising.
+- Commit DB mutations, refresh instances, and never swallow exceptions without logging.
+- Keep async endpoints truly async; offload CPU-bound tasks or call sync functions via threadpools.
+- Svelte files live under `frontend/src/routes`; co-locate `+page.svelte` with typed `+page.ts`.
+- Use helpers in `frontend/src/lib/api.ts` for network calls; always include `credentials: 'include'`.
+- Prefer Tailwind utility classes in `app.css`; global resets belong there, not inline.
+- Naming: snake_case for Python funcs/vars, PascalCase for classes/components, kebab-case for files.
+- Tests rely on fixtures in `backend/tests/conftest.py`; override deps via FastAPI dependency overrides.
